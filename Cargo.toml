@@ -1,0 +1,3 @@
+[workspace]
+
+members = ["base", "cli", "config", "rpc", "validator", "gui_wallet/src-tauri"]
