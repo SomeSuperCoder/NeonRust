@@ -3977,6 +3977,7 @@ name = "validator"
 version = "0.1.0"
 dependencies = [
  "base",
+ "once_cell",
  "rocket",
  "serde",
  "serde_json",

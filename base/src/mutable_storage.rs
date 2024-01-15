@@ -1,6 +1,7 @@
 use std::collections::HashMap;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MutableStorage {
     data: HashMap<String, String>
 }

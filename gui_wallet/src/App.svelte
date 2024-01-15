@@ -24,5 +24,6 @@
     <Route path="/login_password">
       <LoginPassword />
     </Route>
+    
   </Router>
 </main>

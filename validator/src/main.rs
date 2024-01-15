@@ -1,5 +1,11 @@
 use base::{blockchain::{Blockchain, self}, block::{Block, self}, history::{History, self}, transaction::{Transaction, SenderPart, ValidatorPart}, mutable_storage::MutableStorage};
 use rocket::State;
+use std::sync::{Arc, Mutex};
+use once_cell::sync::Lazy;
+use rocket::serde::json::Json;
+
+static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
 
 #[macro_use] extern crate rocket;
 
@@ -11,14 +17,11 @@ fn rocket() -> _ {
     // history.add_part(new_part);
     // let new_part = history.create_new_part(Some(tx.clone()));
     // history.add_part(new_part);
-
-    let mut blockchain = Blockchain::new();
-    blockchain.add_block(Block::default());
-
-    let mut tx_pool: Vec<Transaction> = Vec::new();
-
-    // println!("{:?}", history);
-    rocket::build().mount("/", routes![index, pull_blockchain]).manage(blockchain)
+    println!("{:?}", Transaction::default());
+    let mut blockchain_access = blockchain.lock().unwrap();
+    blockchain_access.add_block(Block::default());
+    drop(blockchain_access);
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx])
 }
 
 #[get("/")]
@@ -27,15 +30,22 @@ fn index() -> &'static str {
 }
 
 #[get("/pull_blockchain/<index>")]
-fn pull_blockchain(index: usize, blockchain: &State<Blockchain>) -> String {
-    println!("{:?}", blockchain);
-    let block = blockchain.get_block(index);
+fn pull_blockchain(index: usize) -> String {
+    let blockchaion_access = blockchain.lock().unwrap();
+    let block = blockchaion_access.get_block(index);
     match block {
         Some(block) => {
             format!("{:?}", block)
         },
         None => "".to_string()
     }
+}
+// { "sender_part": { "program_id": "", "message_text": "", "public_key": [] }, "validator_part": { "public_key": [] }, "storage":  { "data": {} } }
+#[post("/add_tx", data = "<tx>")]
+fn add_tx(mut tx:Json<Transaction>) {
+    println!("{:?}", tx);
+    tx_pool.lock().unwrap().push(tx.into_inner());
+    println!("{:?}", tx_pool);
 }
 
 /*
