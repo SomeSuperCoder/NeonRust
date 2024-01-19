@@ -15,6 +15,7 @@ impl ProcessOrderLayer {
     }
 }
 
+#[derive(Default)]
 struct ProcessOrder {
     layers: Vec<ProcessOrderLayer>
 }
@@ -65,6 +66,7 @@ impl ProcessOrder {
     }
 }
 
+#[derive(Default)]
 pub struct ProgramRuntime {
     process_order: ProcessOrder
 }
