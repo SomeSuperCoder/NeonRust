@@ -11,7 +11,8 @@
   },
   "tauri": {
     "allowlist": {
-      "all": false
+      "all": false,
+      "dialog": { "message": true }
     },
     "bundle": {
       "active": true,

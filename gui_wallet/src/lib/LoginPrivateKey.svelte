@@ -1,6 +1,10 @@
 <script lang="ts">
-    import { Router, Route, Link } from "svelte-navigator";
+    import { Router, Route, Link, navigate } from "svelte-navigator";
+    import Textfield from '@smui/textfield';
+    import Button, { Label } from '@smui/button';
+
     let seed_phrase = "";
+    let inputValue = 'Write here!';
     function generate_seed_phrase() {
         seed_phrase = "test"
     }
@@ -8,17 +12,22 @@
     function set_seed_pharase(e: any) {
         seed_phrase = e.target.value
     }
-    function enter_login() {
-        
+
+    function enter_main(){
+        navigate("/main")
     }
 </script>
 
 <div class="login_form">
     <h1>Вход по приватному ключу</h1>
-    <textarea placeholder="Приватный ключ" bind:value={seed_phrase}></textarea> <!-- on:input={set_seed_pharase} value={seed_phrase} -->
-    <button on:click={enter_login}></button>
-    <button on:click={generate_seed_phrase}>Сгенерировать</button>
-    <Link to="/">Назад</Link>
+    <Textfield label="Приватный ключ" bind:value={seed_phrase} textarea></Textfield> <!-- on:input={set_seed_pharase} value={seed_phrase} -->
+    <Button on:click={generate_seed_phrase}>
+        <Label>Сгенерировать</Label>
+    </Button>
+    <Button variant="raised" on:click={enter_main}>Войти</Button>
+    <Button on:click={() => navigate("/")}>
+        <Label>Назад</Label>
+    </Button>
 </div>
 
 <style>
@@ -27,10 +36,10 @@
         flex-direction: column;
         align-items: center;
     }
-
+    /* 
     .login_form * {
         width: 33vh;
-    }
+    } */
 
     textarea {
         height: 90px;

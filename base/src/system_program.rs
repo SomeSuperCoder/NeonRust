@@ -22,7 +22,7 @@ impl SystemProgram {
 }
 
 impl ProgramTrait for SystemProgram {
-    fn will_touch(&self, tx: Transaction) -> Result<Vec<String>, Box<dyn Error>> {
+    fn will_touch(&self, tx: &Transaction) -> Result<Vec<String>, Box<dyn Error>> {
         let parse_result = SystemProgram::parse_tx(tx.clone())?;
         let args = &parse_result.1;
         let mut result: Vec<String> = Vec::new();

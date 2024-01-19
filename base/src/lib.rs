@@ -11,6 +11,7 @@ pub mod blockchain;
 pub mod block;
 pub mod epoch;
 pub mod system_program;
+pub mod program_runtime;
 
 #[cfg(test)]
 mod tests {

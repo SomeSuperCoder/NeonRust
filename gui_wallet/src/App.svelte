@@ -5,9 +5,9 @@
   import LoginSeed from "./lib/LoginSeed.svelte";
   import LoginPassword from "./lib/LoginLoginPassword.svelte"
   import { invoke } from '@tauri-apps/api'
-  invoke('greet', { name: 'World' })
-  // `invoke` returns a Promise
-  .then((response) => console.log(response))
+  import MainPage from "./lib/MainPage.svelte"
+  import Send from './lib/Send.svelte';
+  // invoke('greet', { name: 'World' }).then((response) => console.log(response))
 </script>
 
 <main>
@@ -24,6 +24,11 @@
     <Route path="/login_password">
       <LoginPassword />
     </Route>
-    
+    <Route path="/main">
+      <MainPage />
+    </Route>
+    <Route path="/send">
+      <Send />
+    </Route>
   </Router>
 </main>
