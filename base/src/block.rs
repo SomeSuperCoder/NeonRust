@@ -1,7 +1,6 @@
-use crate::history::History;
+use crate::transaction::Transaction;
 
 #[derive(Debug, Default)]
 pub struct Block {
-    pub seq: History,
-    pub latest_seq_hash: String
+    pub seq: Vec<Transaction>
 }

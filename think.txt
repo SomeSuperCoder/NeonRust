@@ -1,0 +1,26 @@
+Runtime
+    - InvokeHandler
+        - Cache
+
+Runtime.feed_list(tx_list: Vec<Transaction>) // will process a list by calling self.feed
+
+for tx in &tx_list {
+    for ins in &tx.message.instructions {
+        self.feed(ins);
+    }
+}
+
+Runtime.feed() // will add a transaction to a todo list or call InvokeHandler.invoke()
+
+self.invoke_handler.invoke(ins)
+
+
+InvokeHandler.invoke() // will give the instruction to NativeRunner.invoke()
+
+if self.can_invoke(&ins.accounts) {
+    return thread::start(|| { NativeRunner.invoke(
+        Rc<self>
+    ); })
+} else {
+    self.todo.push(ins)
+}

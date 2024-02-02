@@ -36,10 +36,6 @@
         flex-direction: column;
         align-items: center;
     }
-    /* 
-    .login_form * {
-        width: 33vh;
-    } */
 
     textarea {
         height: 90px;

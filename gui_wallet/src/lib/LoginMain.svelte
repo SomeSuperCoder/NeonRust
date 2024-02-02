@@ -32,5 +32,4 @@
         /* min-width: 320px; */
         min-height: 100vh;
     }
-
 </style>

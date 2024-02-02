@@ -1,14 +1,14 @@
+mod id;
+
 use base::{blockchain::{Blockchain, self}, block::{Block, self}, history::{History, self}, transaction::{Transaction, SenderPart, ValidatorPart}, mutable_storage::MutableStorage};
-use std::sync::{Arc, Mutex};
+use std::sync::Mutex;
 use once_cell::sync::Lazy;
-use rocket::{serde::json::Json, tokio::task::spawn_blocking, futures::FutureExt};
-use std::net::{Ipv4Addr, SocketAddr};
-use reqwest::Client;
-use std::error::Error;
+use rocket::serde::json::Json;
+use std::thread;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
-static other_nodes: Lazy<Mutex<Vec<SocketAddr>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 
 #[macro_use] extern crate rocket;
@@ -21,6 +21,7 @@ fn rocket() -> _ {
     // history.add_part(new_part);
     // let new_part = history.create_new_part(Some(tx.clone()));
     // history.add_part(new_part);
+    let main_validator_handler = thread::spawn(main_validator);
     println!("{:?}", Transaction::default());
     let mut blockchain_access = blockchain.lock().unwrap();
     blockchain_access.add_block(Block::default());
@@ -59,9 +60,14 @@ fn add_tx(tx: Json<Transaction>) {
 #[post("/add_to_node_list", data = "<url>")]
 async fn add_to_node_list(url: String) -> String {
     // let url_obj: Result<SocketAddr, _> = url.parse();
-    let ping_result = ping(url).await;
+    let ping_result = ping(url.clone()).await;
     match ping_result {
-        Ok(_) => "Ok".to_string(),
+        Ok(_) => {
+            let mut other_nodes_access = other_nodes.lock().unwrap();
+            other_nodes_access.push(url);
+            drop(other_nodes_access);
+            "Ok".to_string()
+        },
         Err(error) => error.to_string()
     }
 }
@@ -73,12 +79,19 @@ async fn ping(url: String) -> Result<(), reqwest::Error> {
     }
 }
 
+fn main_validator() {
+    loop {
+        println!("Valdate!");
+    }
+}
+
 /*
+
 Logic
 
-/pull_blockchain - provides a way to sync with the blockchain
-/add_tx - used to add a tx to the pool
+/pull_blockchain - provides a way to sync with the blockchain - Ok
+/add_tx - used to add a tx to the pool - Ok
 /select - only the leader can access this url. It is used to choose transactions to add to the new block
-/add_to_node_list - add the sender ip to node list (check if port is opened)
+/add_to_node_list - add the sender ip to node list (check if port is opened) - Ok
 
 */

@@ -7,6 +7,8 @@
   import { invoke } from '@tauri-apps/api'
   import MainPage from "./lib/MainPage.svelte"
   import Send from './lib/Send.svelte';
+  import Person from './lib/Person.svelte';
+  import TransactionWait from './lib/TransactionWait.svelte';
   // invoke('greet', { name: 'World' }).then((response) => console.log(response))
 </script>
 
@@ -29,6 +31,12 @@
     </Route>
     <Route path="/send">
       <Send />
+    </Route>
+    <Route path="/person">
+      <Person />
+    </Route>
+    <Route path="/transaction">
+      <TransactionWait />
     </Route>
   </Router>
 </main>

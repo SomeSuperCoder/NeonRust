@@ -1,16 +1,15 @@
-use crate::has_address::HasAddress;
-use crate::mutable_storage::MutableStorage;
-use crate::ecdsa::public_key_to_address;
-
-
+#[derive(Default, Debug)]
 pub struct Account {
-    public_key: Vec<u8>,
-    storage: MutableStorage
+    pub data: Vec<u8>,
+    pub pubkey: String, // Placeholder!!!
+    pub owner: String, // Placeholder!!!
+    pub atoms: u128,
+    pub executable: bool
 }
 
-impl HasAddress for Account {
-    fn get_address(&self) -> String {
-        // encode(&self.public_key).into_string()
-        public_key_to_address(&self.public_key)
-    }
+#[derive(Default, Debug)]
+pub struct AccountInfo {
+    pub underlying_account: Account,
+    pub is_signer: bool,
+    pub is_writable: bool,
 }

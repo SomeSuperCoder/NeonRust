@@ -1,5 +1,6 @@
 use crate::block::Block;
 use crate::history::History;
+use crate::transaction::Transaction;
 
 #[derive(Debug)]
 pub struct Blockchain {
@@ -11,10 +12,9 @@ impl Blockchain {
         self.blocks.push(block);
     }
 
-    pub fn create_new_block(&self, seq: History) -> Block {
+    pub fn create_new_block(&self, seq: Vec<Transaction>) -> Block {
         Block{
             seq,
-            latest_seq_hash: self.get_latest_hash()
         }
     }
     pub fn get_latest_hash(&self) -> String {

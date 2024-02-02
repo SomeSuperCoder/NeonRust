@@ -5,6 +5,7 @@
     let fee = 1.5
     let valueTypeNumberStep = 0;
     $: result = Number(valueTypeNumberStep)+fee;
+    import {navigate} from 'svelte-navigator'
 </script>
 
 <main>
@@ -15,9 +16,8 @@
             variant="outlined" 
             bind:value={to}
             input$rows={1.5}
-            input$cols={50}
+            input$cols={30}
             input$resizable={false}
-            textarea
         />
         <br>
         <br>
@@ -36,4 +36,6 @@
         <h2>Коммисия: {fee}</h2>
         <h2>Итого: {result}</h2>
     {/if}
+    <br>
+    <Button variant="raised" on:click={() => navigate("/transaction")}>Подтвердить</Button>
 </main>
