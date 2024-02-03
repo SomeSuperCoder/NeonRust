@@ -25,17 +25,17 @@ impl SystemProgram {
                         // Define a program result
                         let mut program_result = ProgramResult::default();
                         // Create an account iterator
-                        let accounts_iter = instruction.accounts.iter();
+                        let mut accounts_iter = instruction.accounts.iter();
 
                         // Extract sender
-                        let sender = next_account(accounts_iter)?;
+                        let sender = next_account(&mut accounts_iter)?;
                         // Check sender account props
                         custom_assert(sender.is_signer)?;
                         custom_assert(sender.is_writable)?;
                         custom_assert(sender.underlying_account.owner == instruction.program_id)?;
 
                         // Extract receiver
-                        let receiver = next_account(accounts_iter)?;
+                        let receiver = next_account(&mut accounts_iter)?;
                         // Check receiver props
                         custom_assert(receiver.is_writable)?;
                         custom_assert(receiver.underlying_account.owner == instruction.program_id)?;
@@ -47,13 +47,13 @@ impl SystemProgram {
 
                         // Set the new sender balance
                         program_result.set_atoms(
-                            sender.underlying_account.pubkey,
+                            sender.underlying_account.pubkey.clone(),
                             sender.underlying_account.atoms - amount
                         );
 
                         // Set the new receiver balance
                         program_result.set_atoms(
-                            receiver.underlying_account.pubkey,
+                            receiver.underlying_account.pubkey.clone(),
                             receiver.underlying_account.atoms + amount
                         );
 

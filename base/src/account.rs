@@ -1,4 +1,4 @@
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Account {
     pub data: Vec<u8>,
     pub pubkey: String, // Placeholder!!!
@@ -7,7 +7,7 @@ pub struct Account {
     pub executable: bool
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct AccountInfo {
     pub underlying_account: Account,
     pub is_signer: bool,

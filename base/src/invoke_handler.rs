@@ -1,5 +1,5 @@
 use std::thread::{self, JoinHandle};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     cache::Cache, instruction::Instruction, native_runner::NativeRunner
@@ -11,17 +11,23 @@ pub struct InvokeHandler {
 }
 
 impl InvokeHandler {
-    pub fn invoke(mut self: Arc<Self>, instruction: Instruction) -> JoinHandle<()> {
-        thread::spawn(|| {
-            let lock = self.cache.lock(instruction.accounts);
+    pub fn invoke(me: Arc<Mutex<Self>>, instruction: Instruction) -> JoinHandle<()> {
+        thread::spawn(move || {
+            let lock = me.lock().unwrap().cache.lock(&instruction.accounts);
 
-            let result = NativeRunner::process_instrcution(instruction, Arc::clone(&self));
+            let result = NativeRunner::process_instrcution(
+                instruction, Arc::clone(&me)
+            );
 
-            self.cache.release(lock);
+            me.lock().unwrap().cache.release(lock);
 
             match result {
                 Ok(result) => {
-                    result.changes.into_iter().map(|change| {self.cache.process_change(change)});
+                    let _: Vec<_> = result.changes.into_iter().map(
+                        |change| {
+                            me.lock().unwrap().cache.process_change(change)
+                        }
+                    ).collect();
                 },
                 _ => {}
             }

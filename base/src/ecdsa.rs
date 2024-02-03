@@ -1,7 +1,8 @@
-use bs58::encode;
+use bs58::{decode, encode};
 use k256::{ecdsa::{SigningKey, RecoveryId, Signature, signature::Signer}, FieldBytes, SecretKey};
 use k256::{EncodedPoint, ecdsa::{VerifyingKey, signature::Verifier}};
 use rand_core::OsRng;
+use serde::de::Error;
 
 pub struct KeyPair {
     pub private_key: Option<SigningKey>,
@@ -44,4 +45,9 @@ impl KeyPair {
 
 pub fn public_key_to_address(public_key: &[u8]) -> String {
     encode(public_key).into_string()
+}
+
+pub fn address_to_public_key(address: String) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let some_vec = decode(address).into_vec()?;
+    Ok(some_vec)
 }

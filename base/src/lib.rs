@@ -30,6 +30,8 @@ pub mod runtime;
 
 #[cfg(test)]
 mod tests {
+    use self::{account::{Account, AccountInfo}, cache::Cache};
+
     use super::*;
 
     #[test]
@@ -54,62 +56,27 @@ mod tests {
         println!("{}, {}", a, b)
     }
 
-    // #[test]
-    // fn test_msg() {
-    //     let test = MessageData::Other(
-    //         HashMap::from(
-    //             [
-    //                 (
-    //                     "".to_string(),
-    //                     MessageData::Data("ABOBA".to_string())
-    //                 )
-    //             ]
-    //         )
-    //     );
+    #[test]
+    fn lock_test() {
+        let mut cache = Cache::default();
 
-    //     println!("{:?}", test)
-    // }
+        let test_account = Account {
+            data: Vec::new(),
+            pubkey: "aboba".to_string(),
+            owner: "capybara".to_string(),
+            atoms: 1_000_000,
+            executable: false
+        };
 
-    // #[test]
-    // fn test_runtime() {
-    //     use wrapper::Wrapper;
-    //     use blockchain::Blockchain;
-    //     use cache::Cache;
-    //     use std::sync::Arc;
-    //     use second_runtime::Runtime;
+        let account_info = AccountInfo {
+            underlying_account: test_account,
+            is_signer: true,
+            is_writable: true
+        };
 
-    //     let wrapper = Wrapper {
-    //         blockchain: Arc::new(Blockchain::new()),
-    //         cache: Arc::new(Cache::default()),
-    //         runtime: Runtime
-    //     };
+        let some_lock = cache.lock(&vec![account_info.clone()]);
 
-    //     fn some_func() {
-    //         struct A {
-    //             test: B,
-    //         }
-            
-    //         struct B {
-    //             parent: Arc<A>,
-    //         }
-            
-    //         impl A {
-    //             fn new() -> Self {
-    //                 let parent = Arc::new(Self { test: B::new(Arc::clone(&parent)) });
-    //                 Self { test: B::new(parent) }
-    //             }
-    //         }
-            
-    //         impl B {
-    //             fn new() -> Self {
-    //                 let parent: Arc<A>; // Declare the `parent` variable
-            
-    //                 // Initialize the `parent` variable within the `new` function
-    //                 parent = Arc::new(A { test: B::new(Arc::clone(&parent)) });
-            
-    //                 Self { parent }
-    //             }
-    //         }
-    //     }
-    // }
+        cache.release(some_lock);
+        cache.lock(&vec![account_info.clone()]);
+    }
 }

@@ -5,7 +5,7 @@ use crate::system_program::main_struct::SystemProgram;
 use std::error::Error;
 use std::fmt;
 use config::SYSTEM_PROGRAM_ADDRESS;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug)]
 struct MyError(String);
@@ -28,7 +28,7 @@ impl NativeRunner {
     // instruction_data: &[u8]
     pub fn process_instrcution (
         ins: Instruction,
-        invoke_handler: Arc<InvokeHandler>
+        invoke_handler: Arc<Mutex<InvokeHandler>>
     ) -> Result<ProgramResult, &'static str> {
 
         match ins.program_id.as_str() {
