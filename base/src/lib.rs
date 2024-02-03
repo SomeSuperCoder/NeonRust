@@ -76,7 +76,9 @@ mod tests {
 
         let some_lock = cache.lock(&vec![account_info.clone()]);
 
+        // if you remove this line, you will get into an infite loop
         cache.release(some_lock);
+        
         cache.lock(&vec![account_info.clone()]);
     }
 }
