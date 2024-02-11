@@ -11,7 +11,9 @@ impl Runtime {
         for tx in tx_list {
             for instruction in tx.message.instructions {
                 let join_handle = InvokeHandler::invoke(Arc::clone(&self.invoke_handler), instruction);
-                handles.push(join_handle);
+                if let Some(join_handle) = join_handle {
+                    handles.push(join_handle);
+                }
             }
         }
 

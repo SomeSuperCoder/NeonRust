@@ -1,4 +1,4 @@
-use crate::instruction::Instruction;
+use crate::instruction::{InstrcuctionSekelton, Instruction};
 
 #[derive(Debug, Default)]
 pub struct Transaction {
@@ -9,5 +9,5 @@ pub struct Transaction {
 #[derive(Debug, Default)]
 pub struct Message {
     pub recent_block_hash: String,
-    pub instructions: Vec<Instruction>
+    pub instructions: Vec<InstrcuctionSekelton>
 }
