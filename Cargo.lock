@@ -3071,13 +3071,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rpc"
-version = "0.1.0"
-dependencies = [
- "rocket",
-]
-
-[[package]]
 name = "rustc-demangle"
 version = "0.1.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4289,6 +4282,7 @@ name = "validator"
 version = "0.1.0"
 dependencies = [
  "base",
+ "config",
  "k256",
  "once_cell",
  "reqwest",

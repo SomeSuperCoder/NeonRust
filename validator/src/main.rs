@@ -1,43 +1,46 @@
-mod id;
+pub mod id;
+pub mod epoch;
 
-use base::{blockchain::{Blockchain, self}, block::{Block, self}, history::{History, self}, transaction::{Transaction, SenderPart, ValidatorPart}, mutable_storage::MutableStorage};
+use base::{
+    blockchain::Blockchain,
+    block::{Block, BlockData},
+    transaction::Transaction
+};
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
 use std::thread;
+use std::collections::HashMap;
+
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
-
+static current_slot: u128 = 0;
+static current_leader: String = String::new();
+static me: String = String::new();
+static votes: HashMap<u128, Block> = HashMap::new();
 
 #[macro_use] extern crate rocket;
 
 #[launch]
 fn rocket() -> _ {
-    // let mut history = History::new();
-    // let tx = Transaction::default();
-    // let new_part = history.create_new_part(Some(tx.clone()));
-    // history.add_part(new_part);
-    // let new_part = history.create_new_part(Some(tx.clone()));
-    // history.add_part(new_part);
-    let main_validator_handler = thread::spawn(main_validator);
-    println!("{:?}", Transaction::default());
-    let mut blockchain_access = blockchain.lock().unwrap();
-    blockchain_access.add_block(Block::default());
-    drop(blockchain_access);
+    let main_validator_handle = thread::spawn(main_validator);
+    let bg_finalizer_handle = thread::spawn(bg_finalizer);
+
     rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list])
 }
 
 #[get("/")]
-fn index() -> &'static str {
-    "Neon Validator"
+fn index() -> String {
+    format!("Neon Validator: {}", me)
 }
 
 #[get("/pull_blockchain/<index>")]
 fn pull_blockchain(index: usize) -> String {
     let blockchaion_access = blockchain.lock().unwrap();
     let block = blockchaion_access.get_block(index);
+
     match block {
         Some(block) => {
             format!("{:?}", block) // TODO: do actual serialization
@@ -75,14 +78,41 @@ async fn add_to_node_list(url: String) -> String {
 async fn ping(url: String) -> Result<(), reqwest::Error> {
     match reqwest::get(url).await {
         Ok(_) => Ok(()),
-        Err(error) => Err(error)
+        Err(error) => Err(error) 
     }
 }
 
 fn main_validator() {
     loop {
-        println!("Valdate!");
+        if current_leader == me {
+            println!("🎉 You are win 🎉");
+            
+            // Create and broadcast a block
+            let block = blockchain.lock().unwrap().create_new_block(Vec::new()); // Create
+
+            broadcast_block(block); // Broadcast
+        }
+
+        // WARNING: DO NOT WAIT FOR BLOCK! Rocket will handle this!
+        
+        // update the slot
+        upadte_slot();
     }
+}
+
+fn bg_finalizer() {
+    loop {
+
+    }
+}
+
+fn broadcast_block(block: Block) -> Result<(), ()> {
+    todo!("Implement block broadcast");
+}
+
+fn upadte_slot() {
+    // TODO: change this
+    std::thread::sleep(config::SLOT_LENGTH);
 }
 
 /*
