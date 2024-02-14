@@ -29,7 +29,7 @@ impl Blockchain {
     }
 
     pub fn get_latest_block_height(&self) -> u128 {
-        (self.blocks.len() - 1) as u128
+        (self.blocks.len()) as u128
     }
 
     pub fn new() -> Blockchain {

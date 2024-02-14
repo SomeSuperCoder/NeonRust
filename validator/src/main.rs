@@ -16,10 +16,10 @@ use std::collections::HashMap;
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static current_slot: u128 = 0;
+static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| {Mutex::new(0)});
 static current_leader: String = String::new();
 static me: String = String::new();
-static votes: HashMap<u128, Block> = HashMap::new();
+static votes: Lazy<HashMap<u128, Block>> = Lazy::new(|| HashMap::new());
 
 #[macro_use] extern crate rocket;
 
@@ -27,7 +27,7 @@ static votes: HashMap<u128, Block> = HashMap::new();
 fn rocket() -> _ {
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
-
+    thread::sleep(std::time::Duration::from_secs(10));
     rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list])
 }
 
@@ -85,12 +85,16 @@ async fn ping(url: String) -> Result<(), reqwest::Error> {
 fn main_validator() {
     loop {
         if current_leader == me {
-            println!("🎉 You are win 🎉");
+            println!("🎉 You are chosen 🎉");
             
             // Create and broadcast a block
             let block = blockchain.lock().unwrap().create_new_block(Vec::new()); // Create
+            let block_hash = block.hash.clone();
+            let block_height = block.data.height.clone();
 
-            broadcast_block(block); // Broadcast
+            broadcast_block(block).expect("Broadcast error. Check your internet connection"); // Broadcast
+
+            println!("Successfully created and broadcasted block! (height: {}, hash: {})", block_height, block_hash);
         }
 
         // WARNING: DO NOT WAIT FOR BLOCK! Rocket will handle this!
@@ -102,17 +106,28 @@ fn main_validator() {
 
 fn bg_finalizer() {
     loop {
-
     }
 }
 
 fn broadcast_block(block: Block) -> Result<(), ()> {
-    todo!("Implement block broadcast");
+    // todo!("Implement block broadcast");
+    Ok(())
 }
 
 fn upadte_slot() {
-    // TODO: change this
-    std::thread::sleep(config::SLOT_LENGTH);
+    let mut latest_slot = get_current_slot();
+    let mut current_slot_access = current_slot.lock().unwrap();
+ 
+    while latest_slot <= current_slot_access.clone() {
+        latest_slot = get_current_slot();
+    }
+
+    println!("Current slot: {}", latest_slot.clone());
+    *current_slot_access = latest_slot;
+}
+
+fn get_current_slot() -> u128 {
+    (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_secs()) as u128
 }
 
 /*

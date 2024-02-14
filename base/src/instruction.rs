@@ -1,4 +1,5 @@
 use crate::account::{AccountInfo, AccountSkeleton};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default)]
 pub struct Instruction {
@@ -7,6 +8,7 @@ pub struct Instruction {
     pub data: Vec<u8>
 }
 
+#[derive(Serialize, Deserialize)]
 #[derive(Debug, Default)]
 pub struct InstrcuctionSekelton {
     pub program_id: String,

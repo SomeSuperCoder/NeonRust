@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 #[derive(Default, Debug, Clone)]
 pub struct Account {
     pub data: Vec<u8>,
@@ -14,6 +16,7 @@ pub struct AccountInfo {
     pub is_writable: bool,
 }
 
+#[derive(Serialize, Deserialize)]
 #[derive(Default, Debug, Clone)]
 pub struct AccountSkeleton {
     pub pubkey: String,
