@@ -1,6 +1,8 @@
 use crate::{hasher, transaction::Transaction};
+use serde::{Serialize, Deserialize};
 
 #[derive(Debug, Default)]
+#[derive(Serialize, Deserialize)]
 pub struct Block {
     pub data: BlockData,
     pub hash: String,
@@ -19,6 +21,7 @@ impl Block {
     }
 }
 
+#[derive(Serialize, Deserialize)]
 #[derive(Debug, Default)]
 pub struct BlockData {
     pub seq: Vec<Transaction>,

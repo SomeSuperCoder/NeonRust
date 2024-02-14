@@ -1,11 +1,14 @@
 pub mod id;
 pub mod epoch;
+pub mod block_votes;
+pub mod tx_pool;
 
 use base::{
     blockchain::Blockchain,
     block::{Block, BlockData},
     transaction::Transaction
 };
+use block_votes::BlockVotes;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
@@ -16,10 +19,10 @@ use std::collections::HashMap;
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| {Mutex::new(0)});
+static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static current_leader: String = String::new();
 static me: String = String::new();
-static votes: Lazy<HashMap<u128, Block>> = Lazy::new(|| HashMap::new());
+static votes: Lazy<Mutex<HashMap<u128, BlockVotes>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 
 #[macro_use] extern crate rocket;
 
@@ -28,7 +31,7 @@ fn rocket() -> _ {
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
     thread::sleep(std::time::Duration::from_secs(10));
-    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list])
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list, add_block, vote])
 }
 
 #[get("/")]
@@ -49,7 +52,6 @@ fn pull_blockchain(index: usize) -> String {
     }
 }
 
-// { "sender_part": { "program_id": "", "message_text": "", "public_key": [] }, "validator_part": { "public_key": [] }, "storage":  { "data": {} } }
 #[post("/add_tx", data = "<tx>")]
 fn add_tx(tx: Json<Transaction>) {
     println!("{:?}", tx);
@@ -59,6 +61,15 @@ fn add_tx(tx: Json<Transaction>) {
     println!("{:?}", tx_pool);
 }
 
+#[post("/add_block", data = "<block>")]
+fn add_block(block: Json<Block>) {
+    todo!("Send post request to /vote");
+}
+
+#[post("/vote", data = "<block>")]
+fn vote(block: Json<Block>) {
+
+}
 
 #[post("/add_to_node_list", data = "<url>")]
 async fn add_to_node_list(url: String) -> String {
@@ -97,7 +108,7 @@ fn main_validator() {
             println!("Successfully created and broadcasted block! (height: {}, hash: {})", block_height, block_hash);
         }
 
-        // WARNING: DO NOT WAIT FOR BLOCK! Rocket will handle this!
+        // WARNING: DO NOT WAIT FOR BLOCKS! Rocket will handle this!
         
         // update the slot
         upadte_slot();
@@ -106,6 +117,7 @@ fn main_validator() {
 
 fn bg_finalizer() {
     loop {
+        
     }
 }
 
@@ -130,13 +142,27 @@ fn get_current_slot() -> u128 {
     (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_secs()) as u128
 }
 
-/*
+fn bc_to_url_post(path: &str, data: String) {
+    let mut path = String::from(path);
+    for node_address in other_nodes.lock().unwrap().iter() {
+        let mut result_url = node_address.clone();
 
-Logic
+        if !result_url.ends_with("/") {
+            result_url.push_str("/")
+        }
 
-/pull_blockchain - provides a way to sync with the blockchain - Ok
-/add_tx - used to add a tx to the pool - Ok
-/select - only the leader can access this url. It is used to choose transactions to add to the new block
-/add_to_node_list - add the sender ip to node list (check if port is opened) - Ok
+        if path.starts_with("/") {
+            path.remove(0);
+        }
 
-*/
+        result_url.push_str(path.as_str());
+
+        let client = reqwest::blocking::Client::new();
+
+        let _response = client
+            .post(result_url)
+            .header("Content-Type", "application/json")
+            .body(data.clone())
+            .send();
+    }
+}
