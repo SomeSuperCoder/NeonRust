@@ -2,10 +2,12 @@ pub mod id;
 pub mod epoch;
 pub mod block_votes;
 pub mod tx_pool;
+pub mod vote;
+pub mod block_voter;
 
 use base::{
     blockchain::Blockchain,
-    block::{Block, BlockData},
+    block::Block,
     transaction::Transaction
 };
 use block_votes::BlockVotes;
@@ -14,11 +16,11 @@ use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
 use std::thread;
 use std::collections::HashMap;
-
+use crate::vote::Vote;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
-static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static current_leader: String = String::new();
 static me: String = String::new();
@@ -31,7 +33,7 @@ fn rocket() -> _ {
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
     thread::sleep(std::time::Duration::from_secs(10));
-    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list, add_block, vote])
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list, vote_url])
 }
 
 #[get("/")]
@@ -61,14 +63,37 @@ fn add_tx(tx: Json<Transaction>) {
     println!("{:?}", tx_pool);
 }
 
-#[post("/add_block", data = "<block>")]
-fn add_block(block: Json<Block>) {
-    todo!("Send post request to /vote");
-}
+// #[post("/add_block", data = "<block>")]
+// fn add_block(block: Json<Block>) -> &'static str {
+//     println!("Adding block!");
+//     println!("Loading block data...");
+//     match serde_json::to_string(&block.into_inner()) {
+//         Ok(data) => {
+//             println!("Block data loaded successfully!");
+//             // bc_to_url_post(
+//             //     "vote",
+//             //     data
+//             // );
+//             // println!("Block successfully broadcasted!");
+                
+//             // NOTE: I think we shouldn't broadcast the block itself, but the votes assoicated with it
+//         },
+//         Err(_) => println!("Error loading block data skipping!")
+//     };
 
-#[post("/vote", data = "<block>")]
-fn vote(block: Json<Block>) {
+//     ""
+// }
 
+#[post("/vote", data = "<vote>")]
+fn vote_url(vote: Json<Vote>) -> &'static str {
+    println!("Accepted some vote!");
+    println!("Loading vote data...");
+    
+    let vote = vote.into_inner();
+
+    votes.lock().unwrap().entry(vote.block.data.height).or_insert(BlockVotes::new(vote.block)).vote(vote.pubkey);
+
+    ""
 }
 
 #[post("/add_to_node_list", data = "<url>")]
@@ -94,6 +119,9 @@ async fn ping(url: String) -> Result<(), reqwest::Error> {
 }
 
 fn main_validator() {
+    upadte_slot(); // Wait for a full slot #1
+    upadte_slot(); // Wait for a full slot #2
+
     loop {
         if current_leader == me {
             println!("🎉 You are chosen 🎉");
@@ -103,7 +131,7 @@ fn main_validator() {
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
-            broadcast_block(block).expect("Broadcast error. Check your internet connection"); // Broadcast
+            bc_to_url_post("add_block", serde_json::to_string(&block).expect("You just created an unserializable block! Wierd...")); // Broadcast
 
             println!("Successfully created and broadcasted block! (height: {}, hash: {})", block_height, block_hash);
         }
@@ -121,11 +149,6 @@ fn bg_finalizer() {
     }
 }
 
-fn broadcast_block(block: Block) -> Result<(), ()> {
-    // todo!("Implement block broadcast");
-    Ok(())
-}
-
 fn upadte_slot() {
     let mut latest_slot = get_current_slot();
     let mut current_slot_access = current_slot.lock().unwrap();
@@ -139,13 +162,23 @@ fn upadte_slot() {
 }
 
 fn get_current_slot() -> u128 {
-    (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_secs()) as u128
+    let time = (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_secs()) as u128;
+
+    ((time as f64) / config::SLOT_LENGTH).floor() as u128
 }
 
 fn bc_to_url_post(path: &str, data: String) {
     let mut path = String::from(path);
-    for node_address in other_nodes.lock().unwrap().iter() {
+    let other_nodes_access = other_nodes.lock().unwrap();
+    let other_node_list = other_nodes_access.clone();
+    drop(other_nodes_access);
+
+    for node_address in other_node_list {
         let mut result_url = node_address.clone();
+
+        if !(result_url.starts_with("http://") || result_url.starts_with("https://")) {
+            result_url = "http://".to_string() + result_url.as_str();
+        }
 
         if !result_url.ends_with("/") {
             result_url.push_str("/")
@@ -159,6 +192,8 @@ fn bc_to_url_post(path: &str, data: String) {
 
         let client = reqwest::blocking::Client::new();
 
+        println!("Broadcast to: {}", result_url.clone());
+        
         let _response = client
             .post(result_url)
             .header("Content-Type", "application/json")

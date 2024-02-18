@@ -14,10 +14,7 @@ impl KeyPair {
         match &self.private_key {
             Some(signing_key) => {
                 let message = message.as_bytes();
-
-                // Note: The signature type must be annotated or otherwise inferable as
-                // `Signer` has many impls of the `Signer` trait (for both regular and
-                // recoverable signature types).
+                
                 let signature: Signature = signing_key.sign(message);
 
                 Ok(signature)

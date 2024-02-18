@@ -6,7 +6,8 @@ pub struct Account {
     pub pubkey: String,
     pub owner: String,
     pub atoms: u128,
-    pub executable: bool
+    pub executable: bool,
+    pub latest_nonce: u128
 }
 
 #[derive(Default, Debug, Clone)]

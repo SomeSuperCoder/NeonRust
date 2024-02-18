@@ -9,7 +9,7 @@ pub struct Instruction {
 }
 
 #[derive(Serialize, Deserialize)]
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct InstrcuctionSekelton {
     pub program_id: String,
     pub accounts: Vec<AccountSkeleton>,

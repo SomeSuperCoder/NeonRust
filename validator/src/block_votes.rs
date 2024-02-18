@@ -23,6 +23,10 @@ impl BlockVotes {
             DidActuallyInsert::No
         }
     }
+
+    pub fn count(&self) -> u128 {
+        self.votes.len() as u128
+    }
 }
 
 pub enum DidActuallyInsert {
