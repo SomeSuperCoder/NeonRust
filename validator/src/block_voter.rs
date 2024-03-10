@@ -43,9 +43,11 @@ impl BlockVoter {
         let mut results: Vec<&Block> = Vec::new();
 
         for (id, block_voter_wrapper) in &self.data {
-            for (hash, block_voter) in block_voter_wrapper {
-                if (block_voter.count() / _100_percent) as f32 > config::REQUIRED_VOTE_PERCENT {
-                    results.push(&block_voter.block)
+            if *id == block_id {
+                for (hash, block_voter) in block_voter_wrapper {
+                    if (block_voter.count() / _100_percent) as f32 > config::REQUIRED_VOTE_PERCENT {
+                        results.push(&block_voter.block)
+                    }
                 }
             }
         }

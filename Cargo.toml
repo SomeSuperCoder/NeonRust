@@ -1,3 +1,3 @@
 [workspace]
 
-members = ["base", "cli", "config", "validator", "gui_wallet/src-tauri", "poa", "hashscript"]
+members = ["base", "cli", "config", "validator", "poa", "hashscript"]

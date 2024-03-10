@@ -65,7 +65,8 @@ mod tests {
             pubkey: "aboba".to_string(),
             owner: "capybara".to_string(),
             atoms: 1_000_000,
-            executable: false
+            executable: false,
+            latest_nonce: 0
         };
 
         let account_info = AccountInfo {

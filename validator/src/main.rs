@@ -8,8 +8,10 @@ pub mod block_voter;
 use base::{
     blockchain::Blockchain,
     block::Block,
-    transaction::Transaction
+    transaction::Transaction,
+    ecdsa::KeyPair
 };
+use block_voter::BlockVoter;
 use block_votes::BlockVotes;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
@@ -24,7 +26,8 @@ static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static current_leader: String = String::new();
 static me: String = String::new();
-static votes: Lazy<Mutex<HashMap<u128, BlockVotes>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+// static votes: Lazy<Mutex<HashMap<u128, BlockVotes>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 
 #[macro_use] extern crate rocket;
 
@@ -32,8 +35,8 @@ static votes: Lazy<Mutex<HashMap<u128, BlockVotes>>> = Lazy::new(|| Mutex::new(H
 fn rocket() -> _ {
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
-    thread::sleep(std::time::Duration::from_secs(10));
     rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list, vote_url])
+
 }
 
 #[get("/")]
@@ -91,7 +94,9 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     
     let vote = vote.into_inner();
 
-    votes.lock().unwrap().entry(vote.block.data.height).or_insert(BlockVotes::new(vote.block)).vote(vote.pubkey);
+    // TODO: verify vote
+
+    block_voter.lock().unwrap().vote(vote);
 
     ""
 }
@@ -131,7 +136,9 @@ fn main_validator() {
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
-            bc_to_url_post("add_block", serde_json::to_string(&block).expect("You just created an unserializable block! Wierd...")); // Broadcast
+            let my_vote = Vote::new(block, KeyPair::random());
+
+            bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd...")); // Broadcast
 
             println!("Successfully created and broadcasted block! (height: {}, hash: {})", block_height, block_hash);
         }
@@ -145,7 +152,17 @@ fn main_validator() {
 
 fn bg_finalizer() {
     loop {
-        
+        let mut blockchain_access = blockchain.lock().unwrap();
+        let block = block_voter.lock().unwrap().result_for(
+            blockchain_access.get_latest_block_height() + 1,
+        1);
+
+        match block {
+            Some(block) => {
+                blockchain_access.add_block(block);
+            },
+            None => {}
+        }
     }
 }
 
