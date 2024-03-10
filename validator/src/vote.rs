@@ -1,7 +1,7 @@
 use base::{block::Block, ecdsa::{self, public_key_to_address, KeyPair}};
 use serde::{Serialize, Deserialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Vote {
     pub block: Block,
     pub signature: Vec<u8>,
@@ -20,7 +20,7 @@ impl Vote {
         }
     }
 
-    pub fn agree(other: Vote, keypair: KeyPair) -> Self {
-        Self::new(other.block, keypair)
+    pub fn agree(&self, keypair: KeyPair) -> Self {
+        Self::new(self.block.clone(), keypair)
     }
 }

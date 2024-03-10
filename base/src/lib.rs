@@ -4,10 +4,6 @@ pub mod ecdsa;
 pub mod has_address;
 pub mod system_program;
 pub mod utils;
-// pub mod mutable_storage;
-// pub mod program;
-// pub mod account;
-// pub mod wrapper;
 pub mod history;
 pub mod blockchain;
 pub mod block;
@@ -15,18 +11,10 @@ pub mod account;
 pub mod instruction;
 pub mod native_runner;
 pub mod program_result;
-// pub mod system_program;
-// pub mod program_runtime;
 pub mod cache;
 pub mod invoke_handler;
 pub mod runtime;
 pub mod timestamp;
-// pub mod blockchain_wrapper;
-// pub mod process_order;
-// pub mod executor;
-// pub mod instruction;
-// pub mod second_runtime;
-// pub mod message;
 
 #[cfg(test)]
 mod tests {

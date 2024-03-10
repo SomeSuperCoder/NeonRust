@@ -15,27 +15,15 @@ impl BlockVoter {
         }
     }
 
-    // this will return if we voted for the block, or it already exists
     pub fn vote(&mut self, vote: Vote) -> bool {
         let return_value: bool;
         let block = vote.block;
 
         let id_ref = self.data.entry(block.data.height.clone()).or_insert(HashMap::new());
         let entry = id_ref.entry(block.hash.clone());
-
-        match entry {
-            std::collections::hash_map::Entry::Occupied(_) => {
-                return_value = true;
-            },
-            std::collections::hash_map::Entry::Vacant(_) => {
-                return_value = false;
-            }
-        }
-
         let block_votes = entry.or_insert(BlockVotes::new(block));
-        block_votes.vote(vote.pubkey);
 
-        return_value
+        block_votes.vote(vote.pubkey)
     }
 
     pub fn result_for(&self, block_id: u128, _100_percent: u128) -> Option<Block> {

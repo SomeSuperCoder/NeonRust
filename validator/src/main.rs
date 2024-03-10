@@ -26,7 +26,6 @@ static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static current_leader: String = String::new();
 static me: String = String::new();
-// static votes: Lazy<Mutex<HashMap<u128, BlockVotes>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 
 #[macro_use] extern crate rocket;
@@ -66,27 +65,6 @@ fn add_tx(tx: Json<Transaction>) {
     println!("{:?}", tx_pool);
 }
 
-// #[post("/add_block", data = "<block>")]
-// fn add_block(block: Json<Block>) -> &'static str {
-//     println!("Adding block!");
-//     println!("Loading block data...");
-//     match serde_json::to_string(&block.into_inner()) {
-//         Ok(data) => {
-//             println!("Block data loaded successfully!");
-//             // bc_to_url_post(
-//             //     "vote",
-//             //     data
-//             // );
-//             // println!("Block successfully broadcasted!");
-                
-//             // NOTE: I think we shouldn't broadcast the block itself, but the votes assoicated with it
-//         },
-//         Err(_) => println!("Error loading block data skipping!")
-//     };
-
-//     ""
-// }
-
 #[post("/vote", data = "<vote>")]
 fn vote_url(vote: Json<Vote>) -> &'static str {
     println!("Accepted some vote!");
@@ -96,14 +74,18 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
 
     // TODO: verify vote
 
-    block_voter.lock().unwrap().vote(vote);
+    let did_actually_vote = block_voter.lock().unwrap().vote(vote.clone());
+    let my_vote = vote.agree(KeyPair::random());
+
+    if did_actually_vote {
+        bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."));
+    }
 
     ""
 }
 
 #[post("/add_to_node_list", data = "<url>")]
 async fn add_to_node_list(url: String) -> String {
-    // let url_obj: Result<SocketAddr, _> = url.parse();
     let ping_result = ping(url.clone()).await;
     match ping_result {
         Ok(_) => {

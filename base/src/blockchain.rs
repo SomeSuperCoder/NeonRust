@@ -3,7 +3,8 @@ use crate::transaction::Transaction;
 
 #[derive(Debug)]
 pub struct Blockchain {
-    blocks: Vec<Block>
+    blocks: Vec<Block>,
+    metadata: BlockchainMetaData
 }
 
 impl Blockchain {
@@ -33,12 +34,19 @@ impl Blockchain {
     }
 
     pub fn new() -> Blockchain {
-        Blockchain{
-            blocks: Vec::new()
+        Blockchain {
+            blocks: Vec::new(),
+            metadata: BlockchainMetaData::default()
         }
     }
 
     pub fn get_block(&self, index: usize) -> Option<&Block> {
         self.blocks.get(index)
     }
+}
+
+#[derive(Default, Debug)]
+pub struct BlockchainMetaData {
+    latest_hash: String,
+    latest_block_height: u128
 }

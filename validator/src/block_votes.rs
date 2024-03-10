@@ -14,22 +14,17 @@ impl BlockVotes {
         }
     }
 
-    pub fn vote(&mut self, voter: String) -> DidActuallyInsert {
+    pub fn vote(&mut self, voter: String) -> bool {
         let did_instert = self.votes.insert(voter);
 
         if did_instert {
-            DidActuallyInsert::Yes
+            true
         } else {
-            DidActuallyInsert::No
+            false
         }
     }
 
     pub fn count(&self) -> u128 {
         self.votes.len() as u128
     }
-}
-
-pub enum DidActuallyInsert {
-    Yes,
-    No
 }

@@ -1,0 +1,12 @@
+1) Implement Proof of Stake
+ 1.1) Mint
+ 1.2) Epochs
+ 1.3) Special account field
+2) New member addition to the validator network
+3) On disk blockchain save
+4) On disk cache save
+5) Implement all other system instrcutions
+6) Create python runtime
+7) Signature verifycation for
+ 7.1) Transactions
+ 7.2) Votes
