@@ -21,20 +21,22 @@ use std::collections::HashMap;
 use crate::vote::Vote;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
-static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::new()));
+static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static current_leader: String = String::new();
 static me: String = String::new();
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
+static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::random()});
 
 #[macro_use] extern crate rocket;
 
 #[launch]
 fn rocket() -> _ {
+    Blockchain::load();
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
-    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, add_to_node_list, vote_url])
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url])
 
 }
 
@@ -46,11 +48,11 @@ fn index() -> String {
 #[get("/pull_blockchain/<index>")]
 fn pull_blockchain(index: usize) -> String {
     let blockchaion_access = blockchain.lock().unwrap();
-    let block = blockchaion_access.get_block(index);
+    let block = blockchaion_access.get_block(index as u128);
 
     match block {
         Some(block) => {
-            format!("{:?}", block) // TODO: do actual serialization
+            serde_json::to_string(&block).unwrap()
         },
         None => "".to_string()
     }
@@ -71,38 +73,22 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     println!("Loading vote data...");
     
     let vote = vote.into_inner();
-
     // TODO: verify vote
 
-    let did_actually_vote = block_voter.lock().unwrap().vote(vote.clone());
-    let my_vote = vote.agree(KeyPair::random());
+    let mut block_voter_access = block_voter.lock().unwrap();
+    let did_actually_vote = block_voter_access.vote(vote.clone());
+    drop(block_voter_access);
+    
+    let my_vote = vote.agree(&my_key_pair);
 
     if did_actually_vote {
-        bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."));
+        thread::spawn(move || {
+            bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
+        });
     }
+    println!("here4");
 
     ""
-}
-
-#[post("/add_to_node_list", data = "<url>")]
-async fn add_to_node_list(url: String) -> String {
-    let ping_result = ping(url.clone()).await;
-    match ping_result {
-        Ok(_) => {
-            let mut other_nodes_access = other_nodes.lock().unwrap();
-            other_nodes_access.push(url);
-            drop(other_nodes_access);
-            "Ok".to_string()
-        },
-        Err(error) => error.to_string()
-    }
-}
-
-async fn ping(url: String) -> Result<(), reqwest::Error> {
-    match reqwest::get(url).await {
-        Ok(_) => Ok(()),
-        Err(error) => Err(error) 
-    }
 }
 
 fn main_validator() {
@@ -118,7 +104,7 @@ fn main_validator() {
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
-            let my_vote = Vote::new(block, KeyPair::random());
+            let my_vote = Vote::new(block, &my_key_pair);
 
             bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd...")); // Broadcast
 

@@ -2,6 +2,7 @@
 ./.idea
 ./gui_wallet/node_modules
 ./gui_wallet/dist
+neon_validator
 
 # Logs
 logs

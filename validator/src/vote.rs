@@ -9,7 +9,7 @@ pub struct Vote {
 }
 
 impl Vote {
-    pub fn new(block: Block, keypair: KeyPair) -> Self {
+    pub fn new(block: Block, keypair: &KeyPair) -> Self {
         let signature = keypair.sign(&block.hash).unwrap();
         let signature = signature.to_bytes().as_slice().to_vec();
         
@@ -20,7 +20,7 @@ impl Vote {
         }
     }
 
-    pub fn agree(&self, keypair: KeyPair) -> Self {
+    pub fn agree(&self, keypair: &KeyPair) -> Self {
         Self::new(self.block.clone(), keypair)
     }
 }

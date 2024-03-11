@@ -1,15 +1,34 @@
 use crate::block::{Block, BlockData};
 use crate::transaction::Transaction;
 
+use std::fs;
+
 #[derive(Debug)]
 pub struct Blockchain {
-    blocks: Vec<Block>,
     metadata: BlockchainMetaData
 }
 
 impl Blockchain {
     pub fn add_block(&mut self, block: Block) {
-        self.blocks.push(block);
+        self.metadata.latest_block_height = block.data.height.clone();
+        self.metadata.latest_hash = block.hash.clone();
+        
+        fs::write(
+            make_block_path(block.data.height),
+            serde_json::to_string(&block).unwrap()).unwrap();
+    }
+
+    pub fn get_block(&self, height: u128) -> Option<Block> {
+        Self::get_block_function(height)
+    }
+
+    pub fn get_block_function(height: u128) -> Option<Block> {
+        match fs::read(make_block_path(height)) {
+            Ok(block_json) => {
+                serde_json::from_slice(block_json.as_slice()).unwrap()
+            },
+            _ => None
+        }
     }
 
     pub fn create_new_block(&self, seq: Vec<Transaction>) -> Block {
@@ -22,26 +41,43 @@ impl Blockchain {
     }
 
     pub fn get_latest_hash(&self) -> String {
-        let pev_elem = self.blocks.last();
-        match pev_elem {
-            Some(data) => data.hash.clone(),
-            None => String::from("0000000000000000000000000000000000000000000000000000000000000000")
-        }
+        self.metadata.latest_hash.clone()
     }
 
     pub fn get_latest_block_height(&self) -> u128 {
-        (self.blocks.len()) as u128
+        self.metadata.latest_block_height.clone()
     }
 
     pub fn new() -> Blockchain {
         Blockchain {
-            blocks: Vec::new(),
             metadata: BlockchainMetaData::default()
         }
     }
 
-    pub fn get_block(&self, index: usize) -> Option<&Block> {
-        self.blocks.get(index)
+    pub fn load() -> Self {
+        let mut max_num: u128 = 0;
+
+        for entry in fs::read_dir("./neon_validator/blockchain/").unwrap() {
+            let entry = entry.unwrap();
+            let num: u128 = entry.path().file_name().unwrap().to_str().unwrap().parse().unwrap();
+
+            if num > max_num {
+                max_num = num;
+            }
+        }
+
+        let latest_block = Self::get_block_function(max_num.clone()).unwrap_or_else(|| {
+            let mut block = Block::default();
+            block.hash = "0000000000000000000000000000000000000000000000000000000000000000".to_string();
+            block
+        });
+        
+        Self {
+            metadata: BlockchainMetaData {
+                latest_block_height: max_num,
+                latest_hash: latest_block.hash
+            }
+        }
     }
 }
 
@@ -49,4 +85,8 @@ impl Blockchain {
 pub struct BlockchainMetaData {
     latest_hash: String,
     latest_block_height: u128
+}
+
+pub fn make_block_path(height: u128) -> String {
+    format!("./neon_validator/blockchain/{}", height)
 }
