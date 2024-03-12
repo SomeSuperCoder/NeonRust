@@ -6,6 +6,7 @@ use crate::{
     cache::Cache, instruction::Instruction, native_runner::NativeRunner
 };
 
+#[derive(Default)]
 pub struct InvokeHandler {
     pub cache: Cache,
     pub todo: Vec<Instruction>

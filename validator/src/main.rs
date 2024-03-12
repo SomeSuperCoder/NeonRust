@@ -6,11 +6,15 @@ pub mod vote;
 pub mod block_voter;
 
 use base::ecdsa;
+use base::instruction::InstrcuctionSekelton;
+use base::system_program::system_instruction::SystemInstrusction;
+use base::transaction::Message;
 use base::{
     blockchain::Blockchain,
     block::Block,
     transaction::Transaction,
-    ecdsa::KeyPair
+    ecdsa::KeyPair,
+    runtime::Runtime
 };
 use block_voter::BlockVoter;
 use block_votes::BlockVotes;
@@ -20,15 +24,18 @@ use rocket::serde::json::Json;
 use std::thread;
 use std::collections::HashMap;
 use crate::vote::Vote;
+use std::sync::Arc;
+use borsh;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
-static current_leader: String = String::new();
-static me: String = String::new();
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::random()});
+static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
+static current_leader: Lazy<String> = Lazy::new(|| {me.clone()});
+static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 
 #[macro_use] extern crate rocket;
 
@@ -43,7 +50,7 @@ fn rocket() -> _ {
 
 #[get("/")]
 fn index() -> String {
-    format!("Neon Validator: {}", me)
+    format!("Neon Validator: {}", *me)
 }
 
 #[get("/pull_blockchain/<index>")]
@@ -123,9 +130,13 @@ fn main_validator() {
     upadte_slot(); // Wait for a full slot #2
 
     loop {
-        if current_leader == me {
+        if *current_leader == *me {
             println!("🎉 You are chosen 🎉");
             
+            // Wait for runtime executions to finish
+
+            // Gather valid transactions
+
             // Create and broadcast a block
             let block = blockchain.lock().unwrap().create_new_block(Vec::new()); // Create
             let block_hash = block.hash.clone();
@@ -138,8 +149,6 @@ fn main_validator() {
             println!("Successfully created and broadcasted block! (height: {}, hash: {})", block_height, block_hash);
         }
 
-        // WARNING: DO NOT WAIT FOR BLOCKS! Rocket will handle this!
-        
         // update the slot
         upadte_slot();
     }
@@ -157,7 +166,31 @@ fn bg_finalizer() {
 
         match block {
             Some(block) => {
-                blockchain_access.add_block(block);
+                blockchain_access.add_block(block.clone());
+
+                // Create a thread to execute all transactions (inside Add an execution lock to the runtime)
+                thread::spawn(
+                    move || {
+                        // let test_tx = Transaction {
+                        //     signatures: Vec::new(),
+                        //     message: Message {
+                        //         nonce: 0,
+                        //         instruction: InstrcuctionSekelton {
+                        //             data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap(),
+                        //             program_id: "System".to_string(),
+                        //             ..Default::default()
+                        //         }
+                        //     }
+                        // };
+                        let runtime_access = runtime.lock().unwrap();
+                        // let lock = runtime_access.lock();
+                        let handles = Runtime::feed_tx_list(&runtime_access, block.data.seq.clone());
+                        for handle in handles {
+                            handle.join().unwrap();
+                        }
+                        // runtime_access.release(lock);
+                    }
+                );
             },
             None => {}
         }

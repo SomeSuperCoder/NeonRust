@@ -1,12 +1,16 @@
 use crate::{invoke_handler::InvokeHandler, transaction::Transaction};
 use std::{sync::{Arc, Mutex}, thread::JoinHandle};
+use std::collections::HashSet;
 
+#[derive(Default)]
 pub struct Runtime {
-    invoke_handler: Arc<Mutex<InvokeHandler>>
+    invoke_handler: Arc<Mutex<InvokeHandler>>,
+    locks: HashSet<u128>
 }
 
 impl Runtime {
-    pub fn feed_tx_list(self: Arc<Self>, tx_list: Vec<Transaction>) -> Vec<JoinHandle<()>> {
+    pub fn feed_tx_list(&self, tx_list: Vec<Transaction>) -> Vec<JoinHandle<()>> {
+        println!("Feed list!");
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
             let instruction = tx.message.instruction;
@@ -18,4 +22,21 @@ impl Runtime {
 
         handles
     }
+
+    pub fn lock(&mut self) -> RuntimeLock {
+        let id = (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_millis()) as u128;
+        self.locks.insert(id.clone());
+        RuntimeLock {
+            lock_id: id
+        }
+    }
+
+    pub fn release(&mut self, lock: RuntimeLock) {
+        self.locks.remove(&lock.lock_id);
+    }
+}
+
+#[derive(Default)]
+pub struct RuntimeLock {
+    lock_id: u128
 }

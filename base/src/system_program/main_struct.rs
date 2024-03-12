@@ -60,6 +60,12 @@ impl SystemProgram {
                         // Return all changes
                         Ok(program_result)
                     },
+                    SystemInstrusction::HelloWorld => {
+                        for i in 0..10 {
+                            println!("Hello, World!")
+                        };
+                        Ok(ProgramResult::default())
+                    },
                     _ => return Err("Unrecognized command error")
                 }
             }

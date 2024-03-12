@@ -7,8 +7,7 @@ use std::fs;
 #[derive(Default)]
 pub struct Cache {
     pub read_locks: HashSet<String>,
-    pub write_locks: HashSet<String>,
-    pub used_signatures: Vec<String>
+    pub write_locks: HashSet<String>
 }
 
 impl Cache {

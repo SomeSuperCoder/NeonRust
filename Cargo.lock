@@ -2230,6 +2230,7 @@ name = "validator"
 version = "0.1.0"
 dependencies = [
  "base",
+ "borsh",
  "config",
  "k256",
  "once_cell",
