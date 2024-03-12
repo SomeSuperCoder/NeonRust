@@ -5,6 +5,7 @@ pub mod tx_pool;
 pub mod vote;
 pub mod block_voter;
 
+use base::ecdsa;
 use base::{
     blockchain::Blockchain,
     block::Block,
@@ -72,7 +73,20 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     println!("Accepted some vote!");
     println!("Loading vote data...");
     
-    let vote = vote.into_inner();
+    let vote: Vote = vote.into_inner();
+    let sender_keypair = KeyPair{
+        private_key: None,
+        public_key: k256::ecdsa::VerifyingKey::from_sec1_bytes(ecdsa::address_to_public_key(vote.pubkey.clone()).unwrap().as_slice()).unwrap()
+    };
+
+    if !vote.verify_sginature(&sender_keypair) {
+        println!("Invalid signature");
+        return "Invalid signature error"
+    }
+
+    if vote.block.data.height <= blockchain.lock().unwrap().get_latest_block_height() {
+        return "";
+    }
     // TODO: verify vote
 
     let mut block_voter_access = block_voter.lock().unwrap();
@@ -86,7 +100,6 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
             bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
         });
     }
-    println!("here4");
 
     ""
 }
@@ -121,9 +134,12 @@ fn main_validator() {
 fn bg_finalizer() {
     loop {
         let mut blockchain_access = blockchain.lock().unwrap();
-        let block = block_voter.lock().unwrap().result_for(
+        let mut block_voter_access = block_voter.lock().unwrap();
+        let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
         1);
+        
+        block_voter_access.filter(&blockchain_access);
 
         match block {
             Some(block) => {

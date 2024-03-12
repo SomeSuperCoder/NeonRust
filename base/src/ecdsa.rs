@@ -1,8 +1,8 @@
-use bs58::{decode, encode};
-use k256::{ecdsa::{SigningKey, RecoveryId, Signature, signature::Signer}, FieldBytes, SecretKey};
+use bs58::{decode, encode};use k256::{ecdsa::{signature::Signer, RecoveryId, Signature, SigningKey, }, schnorr::SignatureBytes, FieldBytes, Secp256k1, SecretKey};
 use k256::{EncodedPoint, ecdsa::{VerifyingKey, signature::Verifier}};
 use rand_core::OsRng;
 use serde::de::Error;
+use sha2::digest::generic_array::GenericArray;
 
 pub struct KeyPair {
     pub private_key: Option<SigningKey>,
@@ -47,4 +47,12 @@ pub fn public_key_to_address(public_key: &[u8]) -> String {
 pub fn address_to_public_key(address: String) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let some_vec = decode(address).into_vec()?;
     Ok(some_vec)
+}
+
+pub fn signature_to_bytes(signature: Signature) -> Vec<u8> {
+    signature.to_bytes().as_slice().to_vec()
+}
+
+pub fn signature_from_bytes(bytes: Vec<u8>) -> Signature {
+    Signature::from_bytes(&GenericArray::clone_from_slice(bytes.as_slice())).unwrap()
 }

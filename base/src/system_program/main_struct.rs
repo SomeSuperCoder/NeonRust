@@ -59,7 +59,7 @@ impl SystemProgram {
 
                         // Return all changes
                         Ok(program_result)
-                    }
+                    },
                     _ => return Err("Unrecognized command error")
                 }
             }

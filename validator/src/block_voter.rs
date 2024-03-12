@@ -15,6 +15,12 @@ impl BlockVoter {
         }
     }
 
+    pub fn list_ids(&self) {
+        for (i, _) in &self.data {
+            println!("{}", i);
+        }
+    }
+
     pub fn vote(&mut self, vote: Vote) -> bool {
         let return_value: bool;
         let block = vote.block;
@@ -51,6 +57,17 @@ impl BlockVoter {
     }
 
     pub fn filter(&mut self, blockchain: &Blockchain) {
-        todo!();
+        let min_height: u128 = blockchain.get_latest_block_height();
+        let mut should_remove: Vec<u128> = Vec::new();
+
+        for (height, block_voter) in &self.data {
+            if *height <= min_height {
+                should_remove.push(height.clone());
+            }
+        }
+
+        for remove in should_remove {
+            self.data.remove(&remove);
+        }
     }
 }

@@ -11,7 +11,7 @@ pub struct Vote {
 impl Vote {
     pub fn new(block: Block, keypair: &KeyPair) -> Self {
         let signature = keypair.sign(&block.hash).unwrap();
-        let signature = signature.to_bytes().as_slice().to_vec();
+        let signature = ecdsa::signature_to_bytes(signature);
         
         Self {
             block,
@@ -22,5 +22,10 @@ impl Vote {
 
     pub fn agree(&self, keypair: &KeyPair) -> Self {
         Self::new(self.block.clone(), keypair)
+    }
+
+    pub fn verify_sginature(&self, keypair: &KeyPair) -> bool {
+        let signature = ecdsa::signature_from_bytes(self.signature.clone());
+        keypair.verify(&self.block.hash, signature.clone())
     }
 }

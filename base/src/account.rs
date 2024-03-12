@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize)]
 #[derive(Default, Debug, Clone)]
 pub struct Account {
     pub data: Vec<u8>,
@@ -10,6 +11,7 @@ pub struct Account {
     pub latest_nonce: u128
 }
 
+#[derive(Serialize, Deserialize)]
 #[derive(Default, Debug, Clone)]
 pub struct AccountInfo {
     pub underlying_account: Account,
