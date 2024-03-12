@@ -1,6 +1,5 @@
 1) Implement Proof of Stake
 5) Implement all other system instrcutions
-7) Signature verifycation for Transactions
 
 Later:
 9) If one change done by a Program failed, all should be reverted (use clousres)

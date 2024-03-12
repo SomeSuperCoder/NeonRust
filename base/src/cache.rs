@@ -6,7 +6,6 @@ use std::fs;
 
 #[derive(Default)]
 pub struct Cache {
-    pub accounts: HashMap<String, Account>,
     pub read_locks: HashSet<String>,
     pub write_locks: HashSet<String>,
     pub used_signatures: Vec<String>
@@ -115,6 +114,16 @@ impl Cache {
     pub fn does_this_account_exist(&self, pubkey: &String) -> bool {
         fs::read_to_string(make_account_path(pubkey)).is_ok()
     }
+
+    pub fn spend(&self, signature: Vec<u8>) {
+        let hash = crate::hasher::hash_bytes(&signature.as_slice());
+        fs::write(make_spend_path(&hash), &[]).unwrap();
+    }
+
+    pub fn is_spent(&self, signature: Vec<u8>) -> bool {
+        let hash = crate::hasher::hash_bytes(&signature.as_slice());
+        fs::read_to_string(make_spend_path(&hash)).is_ok()
+    }
 } 
 
 #[derive(Default)]
@@ -125,4 +134,8 @@ pub struct CacheLock {
 
 fn make_account_path(pubkey: &String) -> String {
     format!("./neon_validator/cache/accounts/{}", pubkey)
+}
+
+fn make_spend_path(hash: &String) -> String {
+    format!("./neon_validator/cache/accounts/{}", hash)
 }

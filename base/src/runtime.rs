@@ -9,11 +9,10 @@ impl Runtime {
     pub fn feed_tx_list(self: Arc<Self>, tx_list: Vec<Transaction>) -> Vec<JoinHandle<()>> {
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
-            for instruction in tx.message.instructions {
-                let join_handle = InvokeHandler::invoke(Arc::clone(&self.invoke_handler), instruction);
-                if let Some(join_handle) = join_handle {
-                    handles.push(join_handle);
-                }
+            let instruction = tx.message.instruction;
+            let join_handle = InvokeHandler::invoke(Arc::clone(&self.invoke_handler), instruction);
+            if let Some(join_handle) = join_handle {
+                handles.push(join_handle);
             }
         }
 

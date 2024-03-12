@@ -74,34 +74,48 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     println!("Loading vote data...");
     
     let vote: Vote = vote.into_inner();
-    let sender_keypair = KeyPair{
-        private_key: None,
-        public_key: k256::ecdsa::VerifyingKey::from_sec1_bytes(ecdsa::address_to_public_key(vote.pubkey.clone()).unwrap().as_slice()).unwrap()
-    };
 
-    if !vote.verify_sginature(&sender_keypair) {
-        println!("Invalid signature");
-        return "Invalid signature error"
+    if let Ok(public_key_bytes) = ecdsa::address_to_public_key(vote.pubkey.clone()) {
+        if let Ok(public_key) = k256::ecdsa::VerifyingKey::from_sec1_bytes(
+            public_key_bytes.as_slice()
+        ) {
+            let sender_keypair = KeyPair{
+                private_key: None,
+                public_key
+            };
+        
+            if !vote.verify_sginature(&sender_keypair) {
+                println!("Invalid signature");
+                return "Invalid signature error"
+            }
+        
+            if vote.block.data.height <= blockchain.lock().unwrap().get_latest_block_height() {
+                return "";
+            }
+            // TODO: verify vote
+        
+            let mut block_voter_access = block_voter.lock().unwrap();
+            let did_actually_vote = block_voter_access.vote(vote.clone());
+            drop(block_voter_access);
+            
+            let my_vote = vote.agree(&my_key_pair);
+        
+            if did_actually_vote {
+                thread::spawn(move || {
+                    bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
+                });
+            }
+
+
+            ""
+        } else {
+            println!("Error loading public key");
+            "Error loading public key"
+        }
+    } else {
+        println!("Error loading public key");
+        "Error loading public key"
     }
-
-    if vote.block.data.height <= blockchain.lock().unwrap().get_latest_block_height() {
-        return "";
-    }
-    // TODO: verify vote
-
-    let mut block_voter_access = block_voter.lock().unwrap();
-    let did_actually_vote = block_voter_access.vote(vote.clone());
-    drop(block_voter_access);
-    
-    let my_vote = vote.agree(&my_key_pair);
-
-    if did_actually_vote {
-        thread::spawn(move || {
-            bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
-        });
-    }
-
-    ""
 }
 
 fn main_validator() {
