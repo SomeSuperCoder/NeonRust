@@ -2,9 +2,10 @@ use borsh::{BorshSerialize, BorshDeserialize};
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub enum SystemInstrusction {
-    CreateAccount { owner: String, pubkey: String },
+    CreateAccount { pubkey: String },
     CloseAccount,
-    Send { amount: u128, receiver_account_create: bool },
-    Mint { amount: u128, receiver_account_create: bool },
+    Send { amount: u128 },
+    SetAuthority { authority: u128 },
+    SetAdmin { admin: bool },
     HelloWorld
 }

@@ -8,7 +8,8 @@ pub struct Account {
     pub owner: String,
     pub atoms: u128,
     pub executable: bool,
-    pub latest_nonce: u128
+    pub authority: u128,
+    pub admin: bool
 }
 
 #[derive(Serialize, Deserialize)]

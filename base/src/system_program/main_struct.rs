@@ -1,10 +1,7 @@
 use borsh::BorshDeserialize;
 
 use crate::{
-    instruction::Instruction,
-    program_result::ProgramResult,
-    system_program::system_instruction::SystemInstrusction,
-    utils::{
+    account::Account, ecdsa::{address_to_public_key, public_key_to_address}, instruction::Instruction, program_result::{AccountChange, ProgramResult}, system_program::system_instruction::SystemInstrusction, utils::{
         custom_assert, next_account
     }
 };
@@ -21,7 +18,7 @@ impl SystemProgram {
         match command {
             Ok(command) => {
                 match command {
-                    SystemInstrusction::Send { amount, receiver_account_create } => {
+                    SystemInstrusction::Send { amount } => {
                         // Define a program result
                         let mut program_result = ProgramResult::default();
                         // Create an account iterator
@@ -46,15 +43,19 @@ impl SystemProgram {
                         }
 
                         // Set the new sender balance
-                        program_result.set_atoms(
-                            sender.underlying_account.pubkey.clone(),
-                            sender.underlying_account.atoms - amount
+                        program_result.changes.push(
+                            AccountChange::SetAtoms {
+                                of: sender.underlying_account.pubkey.clone(),
+                                amount: sender.underlying_account.atoms - amount
+                            }
                         );
 
                         // Set the new receiver balance
-                        program_result.set_atoms(
-                            receiver.underlying_account.pubkey.clone(),
-                            receiver.underlying_account.atoms + amount
+                        program_result.changes.push(
+                            AccountChange::SetAtoms {
+                                of: receiver.underlying_account.pubkey.clone(),
+                                amount: receiver.underlying_account.atoms + amount
+                            }
                         );
 
                         // Return all changes
@@ -66,7 +67,79 @@ impl SystemProgram {
                         };
                         Ok(ProgramResult::default())
                     },
-                    _ => return Err("Unrecognized command error")
+                    SystemInstrusction::CloseAccount => {
+                        let mut program_result = ProgramResult::default();
+                        let mut accounts_iter = instruction.accounts.iter();
+
+                        let owner = next_account(&mut accounts_iter)?;
+                        custom_assert(owner.is_signer)?;
+                        let target = next_account(&mut accounts_iter)?;
+                        custom_assert(target.is_writable)?;
+                        custom_assert(target.underlying_account.owner == owner.underlying_account.pubkey)?;
+
+                        program_result.changes.push(
+                            AccountChange::CloseAccount { pubkey: target.underlying_account.pubkey.clone() }
+                        );
+
+                        Ok(program_result)
+                    },
+                    SystemInstrusction::CreateAccount { pubkey } => {
+                        let mut program_result = ProgramResult::default();
+                        let mut accounts_iter = instruction.accounts.iter();
+
+                        if let Ok(_) = address_to_public_key(pubkey.clone()) {} else {
+                            return Err("Invalid public key")
+                        }
+
+                        let owner = next_account(&mut accounts_iter)?;
+                        custom_assert(owner.is_signer)?;
+
+                        let mut new_account = Account::default();
+                        new_account.owner = owner.underlying_account.pubkey.clone();
+                        new_account.pubkey = pubkey;
+
+                        program_result.changes.push(
+                            AccountChange::CreateAccount { account: new_account }
+                        );
+
+                        Ok(program_result)
+                    },
+                    SystemInstrusction::SetAdmin { admin } => {
+                        let mut program_result = ProgramResult::default();
+                        let mut accounts_iter = instruction.accounts.iter();
+
+                        let dude = next_account(&mut accounts_iter)?;
+                        custom_assert(dude.is_signer)?;
+                        custom_assert(dude.underlying_account.admin)?;
+
+                        let target = next_account(&mut accounts_iter)?;
+                        custom_assert(target.is_writable)?;
+                        custom_assert(target.underlying_account.owner == instruction.program_id)?;
+
+                        program_result.changes.push(
+                            AccountChange::SetAdmin { of: dude.underlying_account.pubkey.clone(), admin: admin }
+                        );
+
+                        Ok(program_result)
+                    },
+                    SystemInstrusction::SetAuthority { authority } => {
+                        let mut program_result = ProgramResult::default();
+                        let mut accounts_iter = instruction.accounts.iter();
+
+                        let dude = next_account(&mut accounts_iter)?;
+                        custom_assert(dude.is_signer)?;
+                        custom_assert(dude.underlying_account.admin)?;
+
+                        let target = next_account(&mut accounts_iter)?;
+                        custom_assert(target.is_writable)?;
+                        custom_assert(target.underlying_account.owner == instruction.program_id)?;
+
+                        program_result.changes.push(
+                            AccountChange::SetAuthority { of: target.underlying_account.pubkey.clone(), authority: authority }
+                        );
+
+                        Ok(program_result)
+                    }
                 }
             }
             Err(_) => return Err("Parse error")

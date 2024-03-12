@@ -1,4 +1,4 @@
-1) Implement Proof of Stake
+1) Implement Proof of Authority
 5) Implement all other system instrcutions
 
 Later:

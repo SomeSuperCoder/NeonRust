@@ -32,6 +32,48 @@ impl Cache {
                     },
                     None => return Err(())
                 }
+            },
+            AccountChange::CloseAccount { pubkey } => {
+                if let Ok(_) = fs::remove_file(make_account_path(&pubkey)) {} else {
+                    return Err(())
+                }
+            },
+            AccountChange::CreateAccount { account } => {
+                if !self.does_this_account_exist(&account.pubkey) {
+                    self.set_account(account)
+                } else {
+                    return Err(())
+                }
+            },
+            AccountChange::SetAuthority { of, authority } => {
+                match self.get_owned_account(&of) {
+                    Some(mut account) => {
+                        account.authority = authority;
+
+                        self.set_account(account)
+                    },
+                    None => return Err(())
+                }
+            },
+            AccountChange::SetExecutable { of, executable } => {
+                match self.get_owned_account(&of) {
+                    Some(mut account) => {
+                        account.executable = executable;
+
+                        self.set_account(account)
+                    },
+                    None => return Err(())
+                }
+            },
+            AccountChange::SetAdmin { of, admin } => {
+                match self.get_owned_account(&of) {
+                    Some(mut account) => {
+                        account.admin = admin;
+
+                        self.set_account(account)
+                    },
+                    None => return Err(())
+                }
             }
         }
 
@@ -136,5 +178,5 @@ fn make_account_path(pubkey: &String) -> String {
 }
 
 fn make_spend_path(hash: &String) -> String {
-    format!("./neon_validator/cache/accounts/{}", hash)
+    format!("./neon_validator/cache/signatures/{}", hash)
 }

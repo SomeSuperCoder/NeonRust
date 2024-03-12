@@ -56,6 +56,5 @@ impl Transaction {
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Default, Clone)]
 pub struct Message {
-    pub nonce: u128,
     pub instruction: InstrcuctionSekelton
 }
