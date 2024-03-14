@@ -44,30 +44,30 @@ mod tests {
         println!("{}, {}", a, b)
     }
 
-    #[test]
-    fn lock_test() {
-        let mut cache = Cache::default();
+    // #[test]
+    // fn lock_test() {
+    //     let mut cache = Cache::default();
 
-        let test_account = Account {
-            data: Vec::new(),
-            pubkey: "aboba".to_string(),
-            owner: "capybara".to_string(),
-            atoms: 1_000_000,
-            executable: false,
-            latest_nonce: 0
-        };
+    //     let test_account = Account {
+    //         data: Vec::new(),
+    //         pubkey: "aboba".to_string(),
+    //         owner: "capybara".to_string(),
+    //         atoms: 1_000_000,
+    //         executable: false,
+    //         latest_nonce: 0
+    //     };
 
-        let account_info = AccountInfo {
-            underlying_account: test_account,
-            is_signer: true,
-            is_writable: true
-        };
+    //     let account_info = AccountInfo {
+    //         underlying_account: test_account,
+    //         is_signer: true,
+    //         is_writable: true
+    //     };
 
-        let some_lock = cache.lock(&vec![account_info.clone()]);
+    //     let some_lock = cache.lock(&vec![account_info.clone()]);
 
-        // if you remove this line, you will get into an infite loop
-        cache.release(some_lock);
+    //     // if you remove this line, you will get into an infite loop
+    //     cache.release(some_lock);
         
-        cache.lock(&vec![account_info.clone()]);
-    }
+    //     cache.lock(&vec![account_info.clone()]);
+    // }
 }

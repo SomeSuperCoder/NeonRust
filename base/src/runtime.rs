@@ -4,7 +4,7 @@ use std::collections::HashSet;
 
 #[derive(Default)]
 pub struct Runtime {
-    invoke_handler: Arc<Mutex<InvokeHandler>>,
+    pub invoke_handler: Arc<Mutex<InvokeHandler>>,
     locks: HashSet<u128>
 }
 
@@ -13,6 +13,11 @@ impl Runtime {
         println!("Feed list!");
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
+            let ih_access = self.invoke_handler.lock().unwrap();
+            for signature in tx.signatures {
+                ih_access.cache.spend(signature)
+            }
+
             let instruction = tx.message.instruction;
             let join_handle = InvokeHandler::invoke(Arc::clone(&self.invoke_handler), instruction);
             if let Some(join_handle) = join_handle {

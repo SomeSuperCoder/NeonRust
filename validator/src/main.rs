@@ -6,33 +6,27 @@ pub mod vote;
 pub mod block_voter;
 
 use base::ecdsa;
-use base::instruction::InstrcuctionSekelton;
-use base::system_program::system_instruction::SystemInstrusction;
-use base::transaction::Message;
 use base::{
     blockchain::Blockchain,
-    block::Block,
     transaction::Transaction,
     ecdsa::KeyPair,
     runtime::Runtime
 };
 use block_voter::BlockVoter;
-use block_votes::BlockVotes;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
 use std::thread;
-use std::collections::HashMap;
 use crate::vote::Vote;
-use std::sync::Arc;
-use borsh;
+use config;
+use base::account::Account;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
-static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::random()});
+static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("arena green prize sleep furnace fade vibrant awful slow reject capital exotic")).unwrap()});
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
 static current_leader: Lazy<String> = Lazy::new(|| {me.clone()});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
@@ -41,10 +35,25 @@ static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default
 
 #[launch]
 fn rocket() -> _ {
+    println!("I am: {}", *me);
+    // Handle genesis account
+    if let Some(_) = base::cache::Cache::default().get_owned_account(&String::from(config::GENESIS_PUBKEY)) {} else {
+        let account = Account {
+            pubkey: String::from(config::GENESIS_PUBKEY),
+            owner: String::from(config::SYSTEM_PROGRAM_ADDRESS),
+            admin: true,
+            atoms: 10_000 * config::NEON_PARTS as u128,
+            authority: 1,
+            executable: false,
+            data: Vec::new()
+        }; 
+        base::cache::Cache::default().set_account(account);
+    }
+    // ======================
     Blockchain::load();
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
-    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url])
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url, get_account])
 
 }
 
@@ -95,24 +104,25 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
                 println!("Invalid signature");
                 return "Invalid signature error"
             }
-        
-            if vote.block.data.height <= blockchain.lock().unwrap().get_latest_block_height() {
-                return "";
-            }
-            // TODO: verify vote
-        
-            let mut block_voter_access = block_voter.lock().unwrap();
-            let did_actually_vote = block_voter_access.vote(vote.clone());
-            drop(block_voter_access);
-            
-            let my_vote = vote.agree(&my_key_pair);
-        
-            if did_actually_vote {
-                thread::spawn(move || {
-                    bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
-                });
-            }
+            let slot = current_slot.lock().unwrap().clone();
+            let slot_range: Vec<u128> = (slot-5..slot).collect();
 
+            if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.lock().unwrap().cache, slot_range) {
+                println!("Invalid block");
+                return "Invalid block"
+            } else {
+                let mut block_voter_access = block_voter.lock().unwrap();
+                let did_actually_vote = block_voter_access.vote(vote.clone());
+                drop(block_voter_access);
+                
+                let my_vote = vote.agree(&my_key_pair);
+            
+                if did_actually_vote {
+                    thread::spawn(move || {
+                        bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
+                    });
+                }   
+            }
 
             ""
         } else {
@@ -123,6 +133,11 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
         println!("Error loading public key");
         "Error loading public key"
     }
+}
+
+#[get("/account/<pubkey>")]
+fn get_account(pubkey: String) -> String {
+    serde_json::to_string(&base::cache::Cache::default().get_owned_account(&pubkey)).unwrap()
 }
 
 fn main_validator() {
@@ -138,7 +153,7 @@ fn main_validator() {
             // Gather valid transactions
 
             // Create and broadcast a block
-            let block = blockchain.lock().unwrap().create_new_block(Vec::new()); // Create
+            let block = blockchain.lock().unwrap().create_new_block(Vec::new(), current_slot.lock().unwrap().clone()); // Create
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
@@ -161,14 +176,13 @@ fn bg_finalizer() {
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
         1);
-        
-        block_voter_access.filter(&blockchain_access);
+        // block_voter_access.filter(&blockchain_access);
 
         match block {
             Some(block) => {
+                println!("Adding block");
                 blockchain_access.add_block(block.clone());
 
-                // Create a thread to execute all transactions (inside Add an execution lock to the runtime)
                 thread::spawn(
                     move || {
                         // let test_tx = Transaction {
@@ -211,7 +225,6 @@ fn upadte_slot() {
 
 fn get_current_slot() -> u128 {
     let time = (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_secs()) as u128;
-
     ((time as f64) / config::SLOT_LENGTH).floor() as u128
 }
 

@@ -11,6 +11,7 @@ pub struct Blockchain {
 impl Blockchain {
     pub fn add_block(&mut self, block: Block) {
         self.metadata.latest_block_height = block.data.height.clone();
+        self.metadata.latest_slot = block.data.slot.clone();
         self.metadata.latest_hash = block.hash.clone();
         
         fs::write(
@@ -31,11 +32,12 @@ impl Blockchain {
         }
     }
 
-    pub fn create_new_block(&self, seq: Vec<Transaction>) -> Block {
+    pub fn create_new_block(&self, seq: Vec<Transaction>, slot: u128) -> Block {
         let data = BlockData {
             prev_block_hash: self.get_latest_hash(),
             seq: seq,
-            height: self.get_latest_block_height() + 1
+            height: self.get_latest_block_height() + 1,
+            slot
         };
         Block::from_data(data)
     }
@@ -46,6 +48,10 @@ impl Blockchain {
 
     pub fn get_latest_block_height(&self) -> u128 {
         self.metadata.latest_block_height.clone()
+    }
+
+    pub fn get_latest_slot(&self) -> u128 {
+        self.metadata.latest_slot.clone()
     }
 
     pub fn new() -> Blockchain {
@@ -75,7 +81,8 @@ impl Blockchain {
         Self {
             metadata: BlockchainMetaData {
                 latest_block_height: max_num,
-                latest_hash: latest_block.hash
+                latest_hash: latest_block.hash,
+                latest_slot: latest_block.data.slot
             }
         }
     }
@@ -84,7 +91,8 @@ impl Blockchain {
 #[derive(Default, Debug)]
 pub struct BlockchainMetaData {
     latest_hash: String,
-    latest_block_height: u128
+    latest_block_height: u128,
+    latest_slot: u128
 }
 
 pub fn make_block_path(height: u128) -> String {
