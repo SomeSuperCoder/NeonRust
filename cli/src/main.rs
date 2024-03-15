@@ -1,22 +1,27 @@
 mod app_args;
 
 use app_args::CliArgs;
+use base::account::AccountSkeleton;
+use base::instruction::InstrcuctionSekelton;
+use base::system_program::system_instruction::SystemInstrusction;
+use base::transaction::{Message, Transaction};
 use clap::Parser;
 use k256::ecdsa::signature::Keypair;
 use k256::elliptic_curve::generic_array::GenericArray;
 use k256::sha2::digest::Key;
-
 use std::fs;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use dirs;
-use base::ecdsa::{self, public_key_to_address};
+use base::ecdsa::{self, address_to_public_key, public_key_to_address};
 use input_py::input::input;
 use bs58;
 use base::ecdsa::KeyPair;
 use reqwest;
 use serde_json;
 use config;
+use borsh;
+use rand::{self, Rng};
 
 const CONFIG_PATH: &'static str = "/home/allen/.config/neon_account.json";
 
@@ -32,6 +37,9 @@ fn main() {
         },
         "balance" => {
             get_balance()
+        },
+        "send" => {
+            transfer()
         }
         _ => {
             println!("Unknown command: {}", args.command)
@@ -67,6 +75,51 @@ fn get_balance() {
     let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).unwrap();
     let account = account.unwrap_or_default();
     println!("Balance: {} NEON", account.atoms as f64 / config::NEON_PARTS as f64);
+}
+
+fn transfer() {
+    let keypair = get_keypair();
+    let me = public_key_to_address(&*keypair.public_key.to_sec1_bytes());
+    let to = input("To").unwrap();
+    if let Err(_) = address_to_public_key(to.clone()) {
+        panic!("Invalid receiver address");
+    }
+    let amount: f64 = input("Amount").unwrap().parse().expect("That is not a number");
+    let mut rng = rand::thread_rng();
+    let message = Message {
+        nonce: rng.gen_range(u128::MIN..u128::MAX).to_string(),
+        instruction: InstrcuctionSekelton {
+            program_id: "System".to_string(),
+            accounts: vec![
+                // AccountSkeleton {
+                //     pubkey: to,
+                //     is_signer: false,
+                //     is_writable: true
+                // },
+                // AccountSkeleton {
+                //     pubkey: me,
+                //     is_signer: true,
+                //     is_writable: false
+                // }
+            ],
+            // data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
+            data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap()
+        }
+    };
+    let sig = keypair.sign(&serde_json::to_string(&message).unwrap()).unwrap().to_bytes().to_vec();
+    let tx = Transaction {
+        signatures: vec![sig],
+        message: message
+    };
+    let tx = serde_json::to_string(&tx).unwrap();
+
+    let client = reqwest::blocking::Client::new();
+    
+    let _response = client
+        .post("http://127.0.0.1:8000/add_tx")
+        .header("Content-Type", "application/json")
+        .body(tx)
+        .send();
 }
 
 fn make_pk_path() -> PathBuf {

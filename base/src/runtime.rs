@@ -13,9 +13,9 @@ impl Runtime {
         println!("Feed list!");
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
-            let ih_access = self.invoke_handler.lock().unwrap();
+            let ih_access = Arc::clone(&self.invoke_handler);
             for signature in tx.signatures {
-                ih_access.cache.spend(signature)
+                ih_access.lock().unwrap().cache.spend(signature)
             }
 
             let instruction = tx.message.instruction;

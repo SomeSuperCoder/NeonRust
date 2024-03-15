@@ -340,12 +340,14 @@ name = "cli"
 version = "0.1.0"
 dependencies = [
  "base",
+ "borsh",
  "bs58",
  "clap",
  "config",
  "dirs",
  "input_py",
  "k256",
+ "rand",
  "reqwest",
  "serde_json",
 ]

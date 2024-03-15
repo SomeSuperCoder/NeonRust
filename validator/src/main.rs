@@ -20,6 +20,7 @@ use std::thread;
 use crate::vote::Vote;
 use config;
 use base::account::Account;
+use std::collections::HashSet;
 
 static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
@@ -30,7 +31,7 @@ static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from(
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
 static current_leader: Lazy<String> = Lazy::new(|| {me.clone()});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
-
+static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
 #[macro_use] extern crate rocket;
 
 #[launch]
@@ -105,26 +106,31 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
                 return "Invalid signature error"
             }
             let slot = current_slot.lock().unwrap().clone();
-            let slot_range: Vec<u128> = (slot-5..slot).collect();
+            let slot_range: Vec<u128> = (slot-5..slot+1).collect();
 
-            if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.lock().unwrap().cache, slot_range) {
-                println!("Invalid block");
-                return "Invalid block"
-            } else {
-                let mut block_voter_access = block_voter.lock().unwrap();
-                let did_actually_vote = block_voter_access.vote(vote.clone());
-                drop(block_voter_access);
+            thread::spawn(move || {
+                while runtime_locks.lock().unwrap().len() != 0 {}
+
+                if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.lock().unwrap().cache, slot_range) {
+                    println!("Invalid block");
+                    return "Invalid block"
+                } else {
+                    let mut block_voter_access = block_voter.lock().unwrap();
+                    let did_actually_vote = block_voter_access.vote(vote.clone());
+                    drop(block_voter_access);
+                    
+                    let my_vote = vote.agree(&my_key_pair);
                 
-                let my_vote = vote.agree(&my_key_pair);
-            
-                if did_actually_vote {
-                    thread::spawn(move || {
-                        bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
-                    });
-                }   
-            }
+                    if did_actually_vote {
+                        thread::spawn(move || {
+                            bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
+                        });
+                    };
+                    return ""
+                };
+            });
 
-            ""
+            return ""
         } else {
             println!("Error loading public key");
             "Error loading public key"
@@ -148,12 +154,11 @@ fn main_validator() {
         if *current_leader == *me {
             println!("🎉 You are chosen 🎉");
             
-            // Wait for runtime executions to finish
-
-            // Gather valid transactions
-
             // Create and broadcast a block
-            let block = blockchain.lock().unwrap().create_new_block(Vec::new(), current_slot.lock().unwrap().clone()); // Create
+            let mut tx_poll_access = tx_pool.lock().unwrap();
+            let tx_list = tx_poll_access.clone();
+            tx_poll_access.clear();
+            let block = blockchain.lock().unwrap().create_new_block(tx_list, current_slot.lock().unwrap().clone()); // Create
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
@@ -176,33 +181,28 @@ fn bg_finalizer() {
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
         1);
+
         // block_voter_access.filter(&blockchain_access);
 
         match block {
             Some(block) => {
+                runtime_locks.lock().unwrap().insert(block.hash.clone());
                 println!("Adding block");
                 blockchain_access.add_block(block.clone());
 
                 thread::spawn(
                     move || {
-                        // let test_tx = Transaction {
-                        //     signatures: Vec::new(),
-                        //     message: Message {
-                        //         nonce: 0,
-                        //         instruction: InstrcuctionSekelton {
-                        //             data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap(),
-                        //             program_id: "System".to_string(),
-                        //             ..Default::default()
-                        //         }
-                        //     }
-                        // };
                         let runtime_access = runtime.lock().unwrap();
-                        // let lock = runtime_access.lock();
+                        // if block.data.seq.len() > 0 {
+                        //     for i in 0..1_000_000 {
+                        //         println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA: {:?}", block.data.seq.clone());
+                        //     }
+                        // }
                         let handles = Runtime::feed_tx_list(&runtime_access, block.data.seq.clone());
                         for handle in handles {
                             handle.join().unwrap();
                         }
-                        // runtime_access.release(lock);
+                        runtime_locks.lock().unwrap().remove(&block.hash.clone());
                     }
                 );
             },

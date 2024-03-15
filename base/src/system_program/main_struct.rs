@@ -19,6 +19,9 @@ impl SystemProgram {
             Ok(command) => {
                 match command {
                     SystemInstrusction::Send { amount } => {
+                        for i in 0..100 {
+                            println!("We are in seeend!");
+                        }
                         // Define a program result
                         let mut program_result = ProgramResult::default();
                         // Create an account iterator
