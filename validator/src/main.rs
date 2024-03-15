@@ -111,7 +111,7 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
             thread::spawn(move || {
                 while runtime_locks.lock().unwrap().len() != 0 {}
 
-                if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.lock().unwrap().cache, slot_range) {
+                if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.read().unwrap().cache, slot_range) {
                     println!("Invalid block");
                     return "Invalid block"
                 } else {

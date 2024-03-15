@@ -1,10 +1,10 @@
 use crate::{invoke_handler::InvokeHandler, transaction::Transaction};
-use std::{sync::{Arc, Mutex}, thread::JoinHandle};
+use std::{sync::{Arc, Mutex, RwLock}, thread::JoinHandle};
 use std::collections::HashSet;
 
 #[derive(Default)]
 pub struct Runtime {
-    pub invoke_handler: Arc<Mutex<InvokeHandler>>,
+    pub invoke_handler: Arc<RwLock<InvokeHandler>>,
     locks: HashSet<u128>
 }
 
@@ -13,9 +13,9 @@ impl Runtime {
         println!("Feed list!");
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
-            let ih_access = Arc::clone(&self.invoke_handler);
+            let ih_access = self.invoke_handler.read().unwrap();
             for signature in tx.signatures {
-                ih_access.lock().unwrap().cache.spend(signature)
+                ih_access.cache.spend(signature)
             }
 
             let instruction = tx.message.instruction;

@@ -2,7 +2,7 @@ use crate::instruction::Instruction;
 use crate::invoke_handler::InvokeHandler;
 use crate::program_result::ProgramResult;
 use crate::system_program::main_struct::SystemProgram;
-use std::error::Error;
+use std::{error::Error, sync::RwLock};
 use std::fmt;
 use config::SYSTEM_PROGRAM_ADDRESS;
 use std::sync::{Arc, Mutex};
@@ -28,7 +28,7 @@ impl NativeRunner {
     // instruction_data: &[u8]
     pub fn process_instrcution (
         ins: Instruction,
-        invoke_handler: Arc<Mutex<InvokeHandler>>
+        invoke_handler: Arc<RwLock<InvokeHandler>>
     ) -> Result<ProgramResult, &'static str> {
 
         match ins.program_id.as_str() {
