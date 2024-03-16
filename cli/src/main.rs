@@ -22,8 +22,9 @@ use serde_json;
 use config;
 use borsh;
 use rand::{self, Rng};
+use whoami;
 
-const CONFIG_PATH: &'static str = "/home/allen/.config/neon_account.json";
+const CONFIG_PATH: &'static str = ".config/neon_account.json";
 
 fn main() {
     let args = CliArgs::parse();
@@ -71,13 +72,14 @@ fn recover_account() {
 fn get_balance() {
     let keypair = get_keypair();
     let pubkey = public_key_to_address(&*keypair.public_key.to_sec1_bytes());
-    let resonse = reqwest::blocking::get(format!("http://127.0.0.1:8000/account/{}", pubkey)).expect("Failed to fetch data from rpc");
+    let resonse = reqwest::blocking::get(format!("http://allen_neon_rpc.serveo.net/account/{}", pubkey)).expect("Failed to fetch data from rpc");
     let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).unwrap();
     let account = account.unwrap_or_default();
     println!("Balance: {} NEON", account.atoms as f64 / config::NEON_PARTS as f64);
 }
 
 fn transfer() {
+    // Get data
     let keypair = get_keypair();
     let me = public_key_to_address(&*keypair.public_key.to_sec1_bytes());
     let to = input("To").unwrap();
@@ -86,24 +88,64 @@ fn transfer() {
     }
     let amount: f64 = input("Amount").unwrap().parse().expect("That is not a number");
     let mut rng = rand::thread_rng();
+    // Check if receiver account exisits
+    let resonse = reqwest::blocking::get(format!("http://allen_neon_rpc.serveo.net/account/{}", to.clone())).expect("Failed to fetch data from rpc");
+    let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).unwrap();
+    if account.is_none() {
+        // Create account tx
+        let message = Message {
+            nonce: rng.gen_range(u128::MIN..u128::MAX).to_string(),
+            instruction: InstrcuctionSekelton {
+                program_id: "System".to_string(),
+                accounts: vec![
+                    AccountSkeleton {
+                        is_signer: false,
+                        is_writable: false,
+                        pubkey: String::from(config::SYSTEM_PROGRAM_ADDRESS)
+                    }
+                ],
+                data: borsh::to_vec(&SystemInstrusction::CreateAccount { pubkey: to.clone() }).unwrap()
+            }
+        };
+        let sig = keypair.sign(&serde_json::to_string(&message).unwrap()).unwrap().to_bytes().to_vec();
+        let tx = Transaction {
+            signatures: vec![sig],
+            message: message
+        };
+        let tx = serde_json::to_string(&tx).unwrap();
+    
+        let client = reqwest::blocking::Client::new();
+        
+        let _response = client
+            .post("http://allen_neon_rpc.serveo.net/add_tx")
+            .header("Content-Type", "application/json")
+            .body(tx)
+            .send()
+            .unwrap();
+    }
+    // Wait for confirmation
+    while { let resonse = reqwest::blocking::get(format!("http://allen_neon_rpc.serveo.net/account/{}", to.clone())).expect("Failed to fetch data from rpc");
+    let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).unwrap();
+    account.is_none() } {}
+    // Send tx
     let message = Message {
         nonce: rng.gen_range(u128::MIN..u128::MAX).to_string(),
         instruction: InstrcuctionSekelton {
             program_id: "System".to_string(),
             accounts: vec![
-                // AccountSkeleton {
-                //     pubkey: to,
-                //     is_signer: false,
-                //     is_writable: true
-                // },
-                // AccountSkeleton {
-                //     pubkey: me,
-                //     is_signer: true,
-                //     is_writable: false
-                // }
+                AccountSkeleton {
+                    pubkey: me,
+                    is_signer: true,
+                    is_writable: false
+                },
+                AccountSkeleton {
+                    pubkey: to,
+                    is_signer: false,
+                    is_writable: true
+                }
             ],
-            // data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
-            data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap()
+            data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
+            // data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap()
         }
     };
     let sig = keypair.sign(&serde_json::to_string(&message).unwrap()).unwrap().to_bytes().to_vec();
@@ -116,10 +158,11 @@ fn transfer() {
     let client = reqwest::blocking::Client::new();
     
     let _response = client
-        .post("http://127.0.0.1:8000/add_tx")
+        .post("http://allen_neon_rpc.serveo.net/add_tx")
         .header("Content-Type", "application/json")
         .body(tx)
-        .send();
+        .send()
+        .unwrap();
 }
 
 fn make_pk_path() -> PathBuf {
@@ -135,11 +178,11 @@ fn set_keypair(keypair: KeyPair) {
     let key = keypair.private_key.unwrap();
     let serialized_private_key = key.to_bytes().to_vec();
     let serialized_private_key = serialized_private_key.as_slice();
-    fs::write(CONFIG_PATH, serde_json::to_string(&serialized_private_key).unwrap()).unwrap();
+    fs::write(make_pk_path(), serde_json::to_string(&serialized_private_key).unwrap()).unwrap();
 }
 
 fn get_keypair() -> KeyPair {
-    let data: Vec<u8> = serde_json::from_str(&fs::read_to_string(CONFIG_PATH).unwrap()).unwrap();
+    let data: Vec<u8> = serde_json::from_str(&fs::read_to_string(make_pk_path()).unwrap()).unwrap();
     let sk = k256::ecdsa::SigningKey::from_bytes(&GenericArray::clone_from_slice(data.as_slice())).unwrap();
 
     KeyPair {

@@ -141,6 +141,19 @@ impl Cache {
     }
 
     pub fn get_owned_account(&self, pubkey: &String) -> Option<Account> {
+        if *pubkey == String::from(config::SYSTEM_PROGRAM_ADDRESS) {
+            return Some(
+                Account {
+                    admin: true,
+                    atoms: 0,
+                    authority: 0,
+                    data: Vec::new(),
+                    executable: true,
+                    owner: String::from(config::SYSTEM_PROGRAM_ADDRESS),
+                    pubkey: String::from(config::SYSTEM_PROGRAM_ADDRESS)
+                }
+            )
+        }
         if let Ok(account_data) = fs::read_to_string(make_account_path(pubkey)) {
             Some(serde_json::from_str(account_data.as_str()).unwrap())
         } else {

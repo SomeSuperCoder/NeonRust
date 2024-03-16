@@ -77,12 +77,9 @@ fn pull_blockchain(index: usize) -> String {
 }
 
 #[post("/add_tx", data = "<tx>")]
-fn add_tx(tx: Json<Transaction>) {
-    println!("{:?}", tx);
-    let mut tx_pool_access = tx_pool.lock().unwrap();
-    tx_pool_access.push(tx.into_inner());
-    drop(tx_pool_access);
-    println!("{:?}", tx_pool);
+fn add_tx(tx: Json<Transaction>) -> &'static str {
+    tx_pool.lock().unwrap().push(tx.into_inner());
+    ""
 }
 
 #[post("/vote", data = "<vote>")]
@@ -158,6 +155,7 @@ fn main_validator() {
             let mut tx_poll_access = tx_pool.lock().unwrap();
             let tx_list = tx_poll_access.clone();
             tx_poll_access.clear();
+            drop(tx_poll_access);
             let block = blockchain.lock().unwrap().create_new_block(tx_list, current_slot.lock().unwrap().clone()); // Create
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
@@ -176,28 +174,26 @@ fn main_validator() {
 
 fn bg_finalizer() {
     loop {
+        let sleep_time = std::time::Duration::from_millis(10);
+        thread::sleep(sleep_time);
+
         let mut blockchain_access = blockchain.lock().unwrap();
         let mut block_voter_access = block_voter.lock().unwrap();
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
         1);
 
-        // block_voter_access.filter(&blockchain_access);
+        block_voter_access.filter(&blockchain_access);
 
         match block {
             Some(block) => {
-                runtime_locks.lock().unwrap().insert(block.hash.clone());
                 println!("Adding block");
                 blockchain_access.add_block(block.clone());
 
                 thread::spawn(
                     move || {
+                        runtime_locks.lock().unwrap().insert(block.hash.clone());
                         let runtime_access = runtime.lock().unwrap();
-                        // if block.data.seq.len() > 0 {
-                        //     for i in 0..1_000_000 {
-                        //         println!("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA: {:?}", block.data.seq.clone());
-                        //     }
-                        // }
                         let handles = Runtime::feed_tx_list(&runtime_access, block.data.seq.clone());
                         for handle in handles {
                             handle.join().unwrap();

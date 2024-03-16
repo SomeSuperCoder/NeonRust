@@ -19,9 +19,6 @@ impl SystemProgram {
             Ok(command) => {
                 match command {
                     SystemInstrusction::Send { amount } => {
-                        for i in 0..100 {
-                            println!("We are in seeend!");
-                        }
                         // Define a program result
                         let mut program_result = ProgramResult::default();
                         // Create an account iterator
@@ -31,7 +28,6 @@ impl SystemProgram {
                         let sender = next_account(&mut accounts_iter)?;
                         // Check sender account props
                         custom_assert(sender.is_signer)?;
-                        custom_assert(sender.is_writable)?;
                         custom_assert(sender.underlying_account.owner == instruction.program_id)?;
 
                         // Extract receiver
@@ -95,7 +91,7 @@ impl SystemProgram {
                         }
 
                         let owner = next_account(&mut accounts_iter)?;
-                        custom_assert(owner.is_signer)?;
+                        custom_assert(owner.underlying_account.executable)?;
 
                         let mut new_account = Account::default();
                         new_account.owner = owner.underlying_account.pubkey.clone();
