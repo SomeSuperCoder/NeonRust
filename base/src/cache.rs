@@ -182,16 +182,6 @@ impl Cache {
     pub fn update_authority(&self, pubkey: String, authority: u128) {
         fs::write(make_authority_path(&pubkey), authority.to_string()).unwrap();
     }
-
-    pub fn clear() {
-        let paths = ["./neon_validator/cache/accounts",
-                                "./neon_validator/cache/signatures",
-                                "./neon_validator/cache/authority"];
-        
-        for path in paths {
-            fs::remove_dir_all(path).unwrap();
-        }
-    }
 } 
 
 #[derive(Default)]

@@ -86,10 +86,6 @@ impl Blockchain {
             }
         }
     }
-
-    pub fn clear() {
-        fs::remove_dir_all("./neon_validator/blockchain").unwrap();
-    }
 }
 
 #[derive(Default, Debug)]
