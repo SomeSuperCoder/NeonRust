@@ -17,6 +17,7 @@ use base::{
     runtime::Runtime
 };
 use block_voter::BlockVoter;
+use std::sync::RwLock;
 use validator_config::ValidatorConfig;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
@@ -29,15 +30,15 @@ use std::collections::HashSet;
 use poa::PoA;
 
 static tx_pool: Lazy<Mutex<HashSet<Transaction>>> = Lazy::new(|| Mutex::new(HashSet::new()));
-static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
+static blockchain: Lazy<RwLock<Blockchain>> = Lazy::new(|| RwLock::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("bronze major hair ranch level arrange coach engine reveal economy fragile lemon")).unwrap()});
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
-static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
+static runtime: Lazy<RwLock<Runtime>> = Lazy::new(|| {RwLock::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
-static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
+static validator_config_var: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
 static download_process: Lazy<Mutex<bool>> = Lazy::new(|| { Mutex::new( false ) });
 
 #[macro_use] extern crate rocket;
@@ -52,7 +53,7 @@ fn rocket() -> _ {
             owner: String::from(config::SYSTEM_PROGRAM_ADDRESS),
             admin: true,
             atoms: 10_000 * config::NEON_PARTS as u128,
-            authority: 1,
+            authority: 0,
             executable: false,
             data: Vec::new()
         }; 
@@ -62,6 +63,11 @@ fn rocket() -> _ {
     Blockchain::load();
     let main_validator_handle = thread::spawn(main_validator);
     let bg_finalizer_handle = thread::spawn(bg_finalizer);
+    
+    if validator_config_var.pull_from.as_str() != "" {
+        thread::spawn(redownload);
+    }
+    
     rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url, get_account])
 
 }
@@ -73,7 +79,7 @@ fn index() -> String {
 
 #[get("/pull_blockchain/<index>")]
 fn pull_blockchain(index: usize) -> String {
-    let blockchaion_access = blockchain.lock().unwrap();
+    let blockchaion_access = blockchain.read().unwrap();
     let block = blockchaion_access.get_block(index as u128);
 
     match block {
@@ -122,7 +128,7 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
             thread::spawn(move || {
                 while runtime_locks.lock().unwrap().len() != 0 {}
 
-                if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.read().unwrap().cache, slot_range) {
+                if !vote.block.valid_for(&blockchain.read().unwrap(), &runtime.read().unwrap().invoke_handler.read().unwrap().cache, slot_range) {
                     println!("Invalid block");
                     return "Invalid block"
                 } else {
@@ -170,7 +176,7 @@ fn main_validator() {
             let tx_list = tx_poll_access.clone();
             tx_poll_access.clear();
             drop(tx_poll_access);
-            let block = blockchain.lock().unwrap().create_new_block(tx_list.iter().cloned().collect(), current_slot.lock().unwrap().clone()); // Create
+            let block = blockchain.read().unwrap().create_new_block(tx_list.iter().cloned().collect(), current_slot.lock().unwrap().clone()); // Create
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 
@@ -191,7 +197,7 @@ fn bg_finalizer() {
         let sleep_time = std::time::Duration::from_millis(10);
         thread::sleep(sleep_time);
 
-        let mut blockchain_access = blockchain.lock().unwrap();
+        let blockchain_access = blockchain.read().unwrap();
         let mut block_voter_access = block_voter.lock().unwrap();
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
@@ -201,15 +207,20 @@ fn bg_finalizer() {
 
         match block {
             Some(block) => {
+                *download_process.lock().unwrap() = false;
+
                 println!("Adding block");
-                let runtime_access = runtime.lock().unwrap();
+                
+                let runtime_access = runtime.read().unwrap();
                 if block.valid_for(&blockchain_access, &runtime_access.invoke_handler.read().unwrap().cache, (u128::MIN..u128::MAX).collect()) {
+                    let mut blockchain_access = blockchain.write().unwrap();
+
                     blockchain_access.add_block(block.clone());
                 }
 
                 thread::spawn(
                     move || {
-                        let runtime_access = runtime.lock().unwrap();
+                        let runtime_access = runtime.write().unwrap();
                         runtime_locks.lock().unwrap().insert(block.hash.clone());
                         let handles = Runtime::feed_tx_list(&runtime_access, block.data.seq.clone());
                         for handle in handles {
@@ -277,35 +288,43 @@ fn bc_to_url_post(path: &str, data: String) {
 }
 
 pub fn redownload() {
-    // Remove all old data
-    let mut blockchain_access = blockchain.lock().unwrap();
-    let mut runtime_access = runtime.lock().unwrap();
-    Blockchain::clear();
+    *download_process.lock().unwrap() = true;
 
-    *blockchain_access = Blockchain::load();
-
-    Cache::clear();
-
-    let mut block_index: u128 = 1;
+    let mut block_index: u128 = blockchain.read().unwrap().get_latest_block_height() + 1;
     
     loop {
+        if !*download_process.lock().unwrap() {
+            return;
+        }
         // Pull a block
-        let block = reqwest::blocking::get(
-            format!("{}/pull_blockchain/{}", validator_config.pull_from, block_index.clone())
-        ).unwrap().text().unwrap();
-        
+        let mut block: String;
+
+        loop {
+            if !*download_process.lock().unwrap() {
+                return;
+            }
+            block = reqwest::blocking::get(
+                format!("{}/pull_blockchain/{}", validator_config_var.pull_from, block_index.clone())
+            ).unwrap().text().unwrap();
+
+            if block != "" {
+                break;
+            }
+
+            std::thread::sleep(std::time::Duration::from_millis((config::SLOT_LENGTH * (1000 as f64)) as u64));
+        }
+
         let block: Block = serde_json::from_str(block.as_str()).unwrap();
-        if block.valid_for(&blockchain_access, &Cache::default(), (u128::MIN..u128::MAX).collect()) {
-            blockchain_access.add_block(block.clone());
-            for handle in runtime_access.feed_tx_list(block.data.seq) {
+
+        if block.valid_for(&blockchain.read().unwrap(), &Cache::default(), (u128::MIN..u128::MAX).collect()) {
+            blockchain.write().unwrap().add_block(block.clone());
+            for handle in runtime.write().unwrap().feed_tx_list(block.data.seq) {
                 handle.join().unwrap();
             }
         } else {
-            Blockchain::clear();
-            Cache::clear();
             panic!("The node you provided in the config gave an invalid block");
         }
-        
+
         block_index += 1;
     }
 }
