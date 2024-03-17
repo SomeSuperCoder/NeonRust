@@ -277,7 +277,7 @@ fn load() {
         return;
     }
 
-    let i = blockchain.lock().unwrap().get_latest_block_height();
+    let mut i = blockchain.lock().unwrap().get_latest_block_height();
 
     loop {
         let block_text = reqwest::blocking::get(
@@ -301,6 +301,7 @@ fn load() {
         for handle in runtime.lock().unwrap().feed_tx_list(block.data.seq) {
             handle.join().unwrap();
         }
+        i += 1;
     }
 }
 
