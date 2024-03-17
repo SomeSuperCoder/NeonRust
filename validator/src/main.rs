@@ -7,6 +7,8 @@ pub mod block_voter;
 pub mod poa;
 pub mod validator_config;
 
+use base::block::Block;
+use base::cache::Cache;
 use base::ecdsa;
 use base::{
     blockchain::Blockchain,
@@ -36,6 +38,7 @@ static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pa
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
 static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
+static download_process: Lazy<Mutex<bool>> = Lazy::new(|| { Mutex::new( false ) });
 
 #[macro_use] extern crate rocket;
 
@@ -199,12 +202,15 @@ fn bg_finalizer() {
         match block {
             Some(block) => {
                 println!("Adding block");
-                blockchain_access.add_block(block.clone());
+                let runtime_access = runtime.lock().unwrap();
+                if block.valid_for(&blockchain_access, &runtime_access.invoke_handler.read().unwrap().cache, (u128::MIN..u128::MAX).collect()) {
+                    blockchain_access.add_block(block.clone());
+                }
 
                 thread::spawn(
                     move || {
-                        runtime_locks.lock().unwrap().insert(block.hash.clone());
                         let runtime_access = runtime.lock().unwrap();
+                        runtime_locks.lock().unwrap().insert(block.hash.clone());
                         let handles = Runtime::feed_tx_list(&runtime_access, block.data.seq.clone());
                         for handle in handles {
                             handle.join().unwrap();
@@ -267,5 +273,39 @@ fn bc_to_url_post(path: &str, data: String) {
             .header("Content-Type", "application/json")
             .body(data.clone())
             .send();
+    }
+}
+
+pub fn redownload() {
+    // Remove all old data
+    let mut blockchain_access = blockchain.lock().unwrap();
+    let mut runtime_access = runtime.lock().unwrap();
+    Blockchain::clear();
+
+    *blockchain_access = Blockchain::load();
+
+    Cache::clear();
+
+    let mut block_index: u128 = 1;
+    
+    loop {
+        // Pull a block
+        let block = reqwest::blocking::get(
+            format!("{}/pull_blockchain/{}", validator_config.pull_from, block_index.clone())
+        ).unwrap().text().unwrap();
+        
+        let block: Block = serde_json::from_str(block.as_str()).unwrap();
+        if block.valid_for(&blockchain_access, &Cache::default(), (u128::MIN..u128::MAX).collect()) {
+            blockchain_access.add_block(block.clone());
+            for handle in runtime_access.feed_tx_list(block.data.seq) {
+                handle.join().unwrap();
+            }
+        } else {
+            Blockchain::clear();
+            Cache::clear();
+            panic!("The node you provided in the config gave an invalid block");
+        }
+        
+        block_index += 1;
     }
 }
