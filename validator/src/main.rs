@@ -7,6 +7,7 @@ pub mod block_voter;
 pub mod poa;
 pub mod validator_config;
 
+use base::block::Block;
 use base::ecdsa;
 use base::{
     blockchain::Blockchain,
@@ -35,7 +36,7 @@ static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from(
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
-static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
+static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
 
 #[macro_use] extern crate rocket;
 
@@ -55,10 +56,10 @@ fn rocket() -> _ {
         }; 
         base::cache::Cache::default().set_account(account);
     }
+    
+    load();
+
     // ======================
-    Blockchain::load();
-    let main_validator_handle = thread::spawn(main_validator);
-    let bg_finalizer_handle = thread::spawn(bg_finalizer);
     rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url, get_account])
 
 }
@@ -114,7 +115,7 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
                 return "Invalid signature error"
             }
             let slot = current_slot.lock().unwrap().clone();
-            let slot_range: Vec<u128> = (slot-5..slot+1).collect();
+            let slot_range = slot-5..slot+1;
 
             thread::spawn(move || {
                 while runtime_locks.lock().unwrap().len() != 0 {}
@@ -268,4 +269,42 @@ fn bc_to_url_post(path: &str, data: String) {
             .body(data.clone())
             .send();
     }
+}
+
+fn load() {
+    if validator_config.pull_from.as_str() == "" {
+        load_finish();
+        return;
+    }
+
+    let i = blockchain.lock().unwrap().get_latest_block_height();
+
+    loop {
+        let block_text = reqwest::blocking::get(
+            format!("{}/pull_blockchain/{}", validator_config.pull_from, i.clone())
+        ).unwrap().text().unwrap();
+
+        if block_text.as_str() == "" {
+            println!("Blockhain sync with outher nodes done!");
+            load_finish();
+            return;
+        }
+
+        let block: Block = serde_json::from_str(&block_text).unwrap();
+        if block.valid_for(
+            &blockchain.lock().unwrap(),
+        &runtime.lock().unwrap().invoke_handler.read().unwrap().cache,
+        u128::MIN..u128::MAX) {
+
+        }
+        blockchain.lock().unwrap().add_block(block.clone());
+        for handle in runtime.lock().unwrap().feed_tx_list(block.data.seq) {
+            handle.join().unwrap();
+        }
+    }
+}
+
+fn load_finish() {
+    thread::spawn(main_validator);
+    thread::spawn(bg_finalizer);
 }

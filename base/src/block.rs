@@ -23,7 +23,7 @@ impl Block {
         }
     }
 
-    pub fn valid_for(&self, blockchain: &Blockchain, cache: &Cache, slot_range: Vec<u128>) -> bool {
+    pub fn valid_for(&self, blockchain: &Blockchain, cache: &Cache, slot_range: std::ops::Range<u128>) -> bool {
         if !slot_range.contains(&self.data.slot) {
             println!("Invalid slot (range error)!");
             return false
