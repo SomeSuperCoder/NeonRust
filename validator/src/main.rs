@@ -38,7 +38,7 @@ static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from(
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
 static runtime: Lazy<RwLock<Runtime>> = Lazy::new(|| {RwLock::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
-static validator_config_var: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
+static validator_config_var: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
 static download_process: Lazy<Mutex<bool>> = Lazy::new(|| { Mutex::new( false ) });
 
 #[macro_use] extern crate rocket;
@@ -210,7 +210,7 @@ fn bg_finalizer() {
                 *download_process.lock().unwrap() = false;
 
                 println!("Adding block");
-                
+
                 let runtime_access = runtime.read().unwrap();
                 if block.valid_for(&blockchain_access, &runtime_access.invoke_handler.read().unwrap().cache, (u128::MIN..u128::MAX).collect()) {
                     let mut blockchain_access = blockchain.write().unwrap();
