@@ -14,7 +14,6 @@ pub mod program_result;
 pub mod cache;
 pub mod invoke_handler;
 pub mod runtime;
-pub mod timestamp;
 
 #[cfg(test)]
 mod tests {

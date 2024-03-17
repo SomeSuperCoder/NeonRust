@@ -1,0 +1,5 @@
+Validator authority:
+
+1 point per 10 000 NEON stake
+1 point for being an RPC
+1 point for AD+

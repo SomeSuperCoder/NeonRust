@@ -4,6 +4,8 @@ pub mod block_votes;
 pub mod tx_pool;
 pub mod vote;
 pub mod block_voter;
+pub mod poa;
+pub mod validator_config;
 
 use base::ecdsa;
 use base::{
@@ -13,6 +15,7 @@ use base::{
     runtime::Runtime
 };
 use block_voter::BlockVoter;
+use validator_config::ValidatorConfig;
 use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use rocket::serde::json::Json;
@@ -21,17 +24,19 @@ use crate::vote::Vote;
 use config;
 use base::account::Account;
 use std::collections::HashSet;
+use poa::PoA;
 
-static tx_pool: Lazy<Mutex<Vec<Transaction>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static tx_pool: Lazy<Mutex<HashSet<Transaction>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
-static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("arena green prize sleep furnace fade vibrant awful slow reject capital exotic")).unwrap()});
+static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("bronze major hair ranch level arrange coach engine reveal economy fragile lemon")).unwrap()});
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
-static current_leader: Lazy<String> = Lazy::new(|| {me.clone()});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
+static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::default()});
+
 #[macro_use] extern crate rocket;
 
 #[launch]
@@ -78,7 +83,13 @@ fn pull_blockchain(index: usize) -> String {
 
 #[post("/add_tx", data = "<tx>")]
 fn add_tx(tx: Json<Transaction>) -> &'static str {
-    tx_pool.lock().unwrap().push(tx.into_inner());
+    let tx = tx.into_inner();
+    if tx_pool.lock().unwrap().insert(tx.clone()) {
+        thread::spawn(move || {
+            bc_to_url_post("/add_tx", serde_json::to_string(&tx).unwrap())
+        });
+    }
+
     ""
 }
 
@@ -148,7 +159,7 @@ fn main_validator() {
     upadte_slot(); // Wait for a full slot #2
 
     loop {
-        if *current_leader == *me {
+        if PoA::next() == *me {
             println!("🎉 You are chosen 🎉");
             
             // Create and broadcast a block
@@ -156,7 +167,7 @@ fn main_validator() {
             let tx_list = tx_poll_access.clone();
             tx_poll_access.clear();
             drop(tx_poll_access);
-            let block = blockchain.lock().unwrap().create_new_block(tx_list, current_slot.lock().unwrap().clone()); // Create
+            let block = blockchain.lock().unwrap().create_new_block(tx_list.iter().cloned().collect(), current_slot.lock().unwrap().clone()); // Create
             let block_hash = block.hash.clone();
             let block_height = block.data.height.clone();
 

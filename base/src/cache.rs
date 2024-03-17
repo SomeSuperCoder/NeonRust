@@ -178,6 +178,10 @@ impl Cache {
         let hash = crate::hasher::hash_bytes(&signature.as_slice());
         fs::read_to_string(make_spend_path(&hash)).is_ok()
     }
+
+    pub fn update_authority(&self, pubkey: String, authority: u128) {
+        fs::write(make_authority_path(&pubkey), authority.to_string()).unwrap();
+    }
 } 
 
 #[derive(Default)]
@@ -192,4 +196,8 @@ fn make_account_path(pubkey: &String) -> String {
 
 fn make_spend_path(hash: &String) -> String {
     format!("./neon_validator/cache/signatures/{}", hash)
+}
+
+fn make_authority_path(pubkey: &String) -> String {
+    format!("./neon_validator/cache/authority/{}", pubkey)
 }

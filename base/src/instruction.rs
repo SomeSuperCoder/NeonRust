@@ -10,6 +10,7 @@ pub struct Instruction {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Default, Clone)]
+#[derive(Hash, PartialEq, Eq)]
 pub struct InstrcuctionSekelton {
     pub program_id: String,
     pub accounts: Vec<AccountSkeleton>,

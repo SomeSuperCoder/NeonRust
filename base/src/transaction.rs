@@ -1,11 +1,11 @@
-use crate::instruction::{InstrcuctionSekelton, Instruction};
+use crate::instruction::InstrcuctionSekelton;
 use serde::{Deserialize, Serialize};
-use crate::blockchain::Blockchain;
 use crate::cache::Cache;
 use crate::ecdsa::{self, KeyPair};
 
 #[derive(Debug, Default, Clone)]
 #[derive(Serialize, Deserialize)]
+#[derive(Hash, PartialEq, Eq)]
 pub struct Transaction {
     pub signatures: Vec<Vec<u8>>,
     pub message: Message
@@ -55,6 +55,7 @@ impl Transaction {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Debug, Default, Clone)]
+#[derive(Hash, PartialEq, Eq)]
 pub struct Message {
     pub nonce: String,
     pub instruction: InstrcuctionSekelton

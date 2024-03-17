@@ -22,6 +22,7 @@ pub struct AccountInfo {
 
 #[derive(Serialize, Deserialize)]
 #[derive(Default, Debug, Clone)]
+#[derive(Hash, PartialEq, Eq)]
 pub struct AccountSkeleton {
     pub pubkey: String,
     pub is_signer: bool,
