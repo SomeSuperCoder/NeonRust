@@ -295,12 +295,15 @@ fn load() {
             &blockchain.lock().unwrap(),
         &runtime.lock().unwrap().invoke_handler.read().unwrap().cache,
         u128::MIN..u128::MAX) {
+            blockchain.lock().unwrap().add_block(block.clone());
+            for handle in runtime.lock().unwrap().feed_tx_list(block.data.seq) {
+                handle.join().unwrap();
+            }
+            println!("Block №{} loaded!", block.data.height);
+        } else {
+            panic!("Sync node sent an invalid chain!");
+        }
 
-        }
-        blockchain.lock().unwrap().add_block(block.clone());
-        for handle in runtime.lock().unwrap().feed_tx_list(block.data.seq) {
-            handle.join().unwrap();
-        }
         i += 1;
     }
 }
