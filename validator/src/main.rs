@@ -27,6 +27,7 @@ use base::account::Account;
 use std::collections::HashSet;
 use poa::PoA;
 
+static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
 static tx_pool: Lazy<Mutex<HashSet<Transaction>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
@@ -36,13 +37,16 @@ static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from(
 static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
-static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
 
 #[macro_use] extern crate rocket;
 
 #[launch]
 fn rocket() -> _ {
     println!("I am: {}", *me);
+    // Add all nodes from the config to the node list
+    for node in &validator_config.neighbours {
+        other_nodes.lock().unwrap().push(node.clone());
+    }
     // Handle genesis account
     if let Some(_) = base::cache::Cache::default().get_owned_account(&String::from(config::GENESIS_PUBKEY)) {} else {
         let account = Account {
@@ -193,7 +197,7 @@ fn bg_finalizer() {
         let mut block_voter_access = block_voter.lock().unwrap();
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
-        1);
+        other_nodes.lock().unwrap().len() as u128);
 
         block_voter_access.filter(&blockchain_access);
 

@@ -4,8 +4,7 @@ use std::collections::HashSet;
 
 #[derive(Default)]
 pub struct Runtime {
-    pub invoke_handler: Arc<RwLock<InvokeHandler>>,
-    locks: HashSet<u128>
+    pub invoke_handler: Arc<RwLock<InvokeHandler>>
 }
 
 impl Runtime {
@@ -27,21 +26,4 @@ impl Runtime {
 
         handles
     }
-
-    pub fn lock(&mut self) -> RuntimeLock {
-        let id = (std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH).expect("You time is crazy").as_millis()) as u128;
-        self.locks.insert(id.clone());
-        RuntimeLock {
-            lock_id: id
-        }
-    }
-
-    pub fn release(&mut self, lock: RuntimeLock) {
-        self.locks.remove(&lock.lock_id);
-    }
-}
-
-#[derive(Default)]
-pub struct RuntimeLock {
-    lock_id: u128
 }

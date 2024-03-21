@@ -116,6 +116,14 @@ impl Cache {
 
     pub fn form_instruction(&self, instruction_skeleton: InstrcuctionSekelton) -> Result<Instruction, ()> {
         let mut result_accounts = Vec::new();
+        let program_account;
+
+        if let Some(program_account_inner) = self.get_owned_account(&instruction_skeleton.program_id) {
+            program_account = program_account_inner;
+        } else {
+            return Err(())
+        }
+
         for account_skeleton in instruction_skeleton.accounts {
             match self.get_owned_account(&account_skeleton.pubkey) {
                 Some(account) => {
@@ -133,9 +141,9 @@ impl Cache {
 
         Ok(
             Instruction {
-                program_id: instruction_skeleton.program_id,
                 data: instruction_skeleton.data,
-                accounts: result_accounts
+                accounts: result_accounts,
+                program_account: program_account
             }
         )
     }
@@ -154,6 +162,7 @@ impl Cache {
                 }
             )
         }
+        
         if let Ok(account_data) = fs::read_to_string(make_account_path(pubkey)) {
             Some(serde_json::from_str(account_data.as_str()).unwrap())
         } else {
@@ -182,6 +191,16 @@ impl Cache {
     pub fn update_authority(&self, pubkey: String, authority: u128) {
         fs::write(make_authority_path(&pubkey), authority.to_string()).unwrap();
     }
+
+    pub fn get_validator_amount(&self) -> u128 {
+        let mut amount = 0;
+
+        for _ in fs::read_dir("./neon_validator/cache/authority/").unwrap() {
+            amount += 1;
+        }
+
+        amount
+    }
 } 
 
 #[derive(Default)]
@@ -201,3 +220,13 @@ fn make_spend_path(hash: &String) -> String {
 fn make_authority_path(pubkey: &String) -> String {
     format!("./neon_validator/cache/authority/{}", pubkey)
 }
+
+// if let Ok(entries) = fs::read_dir(dir_path) {
+//     for entry in entries {
+//         if let Ok(entry) = entry {
+//             if entry.file_type().unwrap().is_file() {
+//                 file_count += 1;
+//             }
+//         }
+//     }
+// }

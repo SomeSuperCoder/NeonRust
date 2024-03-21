@@ -1,3 +1,4 @@
+use crate::custom_runner::CustomRunner;
 use crate::instruction::Instruction;
 use crate::invoke_handler::InvokeHandler;
 use crate::program_result::ProgramResult;
@@ -23,19 +24,16 @@ impl Error for MyError {}
 pub struct NativeRunner {}
 
 impl NativeRunner {
-    // program_id: String,
-    // accounts: Vec<Account>,
-    // instruction_data: &[u8]
     pub fn process_instrcution (
         ins: Instruction,
         invoke_handler: Arc<RwLock<InvokeHandler>>
     ) -> Result<ProgramResult, &'static str> {
 
-        match ins.program_id.as_str() {
+        match ins.program_account.pubkey.as_str() {
             SYSTEM_PROGRAM_ADDRESS => {
                 SystemProgram::process_instruction(ins)
             },
-            _ => return Err("Unknown address!")
+            _ => CustomRunner::process_foreign_instruction(ins)
         }
     }
 }
