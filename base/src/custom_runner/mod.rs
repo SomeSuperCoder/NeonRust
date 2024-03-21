@@ -1,4 +1,6 @@
-mod sc_rpc;
+pub mod sc_rpc;
+
+use std::future::IntoFuture;
 
 use crate::instruction::Instruction;
 use borsh::BorshDeserialize;
@@ -20,7 +22,9 @@ impl CustomRunner {
 
             if let Ok(user_code) = String::from_utf8(instruction.program_account.data) {
                 let result = tokio::runtime::Runtime::new().unwrap().block_on(
-                    timeout(std::time::Duration::from_secs(3), execute_user_code(user_code))
+                    async {
+                        timeout(std::time::Duration::from_secs(3), execute_user_code(user_code)).await
+                    }
                 );
 
                 if let Ok(result2) = result {
@@ -31,9 +35,7 @@ impl CustomRunner {
                             
                             return Err("User code failed")
                         },
-                        _ => {
-
-                        }
+                        _ => {}
                     }
                 } else {
                     println!("User code ran out of time");

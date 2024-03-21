@@ -2,6 +2,7 @@ mod app_args;
 
 use app_args::CliArgs;
 use base::account::AccountSkeleton;
+use base::custom_runner::sc_rpc::SCRPC;
 use base::instruction::InstrcuctionSekelton;
 use base::system_program::system_instruction::SystemInstrusction;
 use base::transaction::{Message, Transaction};
@@ -131,7 +132,7 @@ fn transfer() {
     let message = Message {
         nonce: rng.gen_range(u128::MIN..u128::MAX).to_string(),
         instruction: InstrcuctionSekelton {
-            program_id: "System".to_string(),
+            program_id: "26UfgMo6TEVY3FiGBFjufAiq1ujD47r1A2znBNSyhxfY4".to_string(),
             accounts: vec![
                 AccountSkeleton {
                     pubkey: me,
@@ -144,7 +145,8 @@ fn transfer() {
                     is_writable: true
                 }
             ],
-            data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
+            data: borsh::to_vec(&SCRPC::default()).unwrap()
+            // data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
             // data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap()
         }
     };
