@@ -18,7 +18,9 @@ impl InvokeHandler {
         if let Ok(instruction) = potential_instrcution {
             return Some(
                 thread::spawn(move || {
-                    let lock = me.write().unwrap().cache.lock(&instruction.accounts);
+                    let mut to_lock = instruction.accounts.clone();
+                    to_lock.push(instruction.program_account.clone());
+                    let lock = me.write().unwrap().cache.lock(&to_lock);
         
                     let result = NativeRunner::process_instrcution(
                         instruction, Arc::clone(&me)
@@ -43,3 +45,4 @@ impl InvokeHandler {
         }
     }
 }
+ 

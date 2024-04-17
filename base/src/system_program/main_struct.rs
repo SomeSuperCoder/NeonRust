@@ -28,13 +28,13 @@ impl SystemProgram {
                         let sender = next_account(&mut accounts_iter)?;
                         // Check sender account props
                         custom_assert(sender.is_signer)?;
-                        custom_assert(sender.underlying_account.owner == instruction.program_account.pubkey)?;
+                        custom_assert(sender.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
 
                         // Extract receiver
                         let receiver = next_account(&mut accounts_iter)?;
                         // Check receiver props
                         custom_assert(receiver.is_writable)?;
-                        custom_assert(receiver.underlying_account.owner == instruction.program_account.pubkey)?;
+                        custom_assert(receiver.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
 
                         // Check if sender has enough money
                         if sender.underlying_account.atoms < amount {
@@ -113,7 +113,7 @@ impl SystemProgram {
 
                         let target = next_account(&mut accounts_iter)?;
                         custom_assert(target.is_writable)?;
-                        custom_assert(target.underlying_account.owner == instruction.program_account.pubkey)?;
+                        custom_assert(target.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
 
                         program_result.changes.push(
                             AccountChange::SetAdmin { of: dude.underlying_account.pubkey.clone(), admin: admin }
@@ -131,7 +131,7 @@ impl SystemProgram {
 
                         let target = next_account(&mut accounts_iter)?;
                         custom_assert(target.is_writable)?;
-                        custom_assert(target.underlying_account.owner == instruction.program_account.pubkey)?;
+                        custom_assert(target.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
 
                         program_result.changes.push(
                             AccountChange::SetAuthority { of: target.underlying_account.pubkey.clone(), authority: authority }

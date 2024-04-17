@@ -35,9 +35,13 @@ impl Transaction {
                         for signature in &self.signatures {
                             let message_strig = &serde_json::to_string(&self.message).unwrap();
                             let signature = ecdsa::signature_from_bytes(signature.clone());
-                            if keypair.verify(message_strig, signature) {
-                                ok_count += 1;
-                                break;
+                            if let Some(signature) = signature {
+                                if keypair.verify(message_strig, signature) {
+                                    ok_count += 1;
+                                    break;
+                                }
+                            } else {
+                                return false;
                             }
                         } 
                     } else {

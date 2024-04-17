@@ -29,7 +29,7 @@ impl NativeRunner {
         invoke_handler: Arc<RwLock<InvokeHandler>>
     ) -> Result<ProgramResult, &'static str> {
 
-        match ins.program_account.pubkey.as_str() {
+        match ins.program_account.underlying_account.pubkey.as_str() {
             SYSTEM_PROGRAM_ADDRESS => {
                 SystemProgram::process_instruction(ins)
             },

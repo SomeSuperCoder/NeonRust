@@ -20,7 +20,7 @@ impl CustomRunner {
         if let Ok(args) = SCRPC::try_from_slice(&instruction.data) {
             let program_result = ProgramResult::default();
 
-            if let Ok(user_code) = String::from_utf8(instruction.program_account.data) {
+            if let Ok(user_code) = String::from_utf8(instruction.program_account.underlying_account.data) {
                 let result = tokio::runtime::Runtime::new().unwrap().block_on(
                     async {
                         timeout(std::time::Duration::from_secs(3), execute_user_code(user_code)).await

@@ -2,16 +2,12 @@ mod app_args;
 
 use app_args::CliArgs;
 use base::account::AccountSkeleton;
-use base::custom_runner::sc_rpc::SCRPC;
 use base::instruction::InstrcuctionSekelton;
 use base::system_program::system_instruction::SystemInstrusction;
 use base::transaction::{Message, Transaction};
 use clap::Parser;
-use k256::ecdsa::signature::Keypair;
 use k256::elliptic_curve::generic_array::GenericArray;
-use k256::sha2::digest::Key;
 use std::fs;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 use dirs;
 use base::ecdsa::{self, address_to_public_key, public_key_to_address};
@@ -23,7 +19,6 @@ use serde_json;
 use config;
 use borsh;
 use rand::{self, Rng};
-use whoami;
 
 const CONFIG_PATH: &'static str = ".config/neon_account.json";
 
@@ -70,6 +65,7 @@ fn recover_account() {
     }
 }
 
+
 fn get_balance() {
     let keypair = get_keypair();
     let pubkey = public_key_to_address(&*keypair.public_key.to_sec1_bytes());
@@ -91,7 +87,7 @@ fn transfer() {
     let mut rng = rand::thread_rng();
     // Check if receiver account exisits
     let resonse = reqwest::blocking::get(format!("http://allen_neon_rpc.serveo.net/account/{}", to.clone())).expect("Failed to fetch data from rpc");
-    let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).unwrap();
+    let account: Option<base::account::Account> = serde_json::from_str(resonse.text().unwrap().as_str()).expect("Server sent invalid account data");
     if account.is_none() {
         // Create account tx
         let message = Message {
@@ -132,7 +128,7 @@ fn transfer() {
     let message = Message {
         nonce: rng.gen_range(u128::MIN..u128::MAX).to_string(),
         instruction: InstrcuctionSekelton {
-            program_id: "26UfgMo6TEVY3FiGBFjufAiq1ujD47r1A2znBNSyhxfY4".to_string(),
+            program_id: "System".to_string(),
             accounts: vec![
                 AccountSkeleton {
                     pubkey: me,
@@ -145,9 +141,7 @@ fn transfer() {
                     is_writable: true
                 }
             ],
-            data: borsh::to_vec(&SCRPC::default()).unwrap()
-            // data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
-            // data: borsh::to_vec(&SystemInstrusction::HelloWorld).unwrap()
+            data: borsh::to_vec(&SystemInstrusction::Send { amount: amount as u128 * config::NEON_PARTS as u128 }).unwrap()
         }
     };
     let sig = keypair.sign(&serde_json::to_string(&message).unwrap()).unwrap().to_bytes().to_vec();

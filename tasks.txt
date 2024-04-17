@@ -1,5 +1,5 @@
-1) Implement Proof of Authority
-5) Implement all other system instrcutions
+1) Remove address to public key unwraps
+2) Update address to and from public key transformation methods
 
 Later:
 9) If one change done by a Program failed, all should be reverted (use clousres)

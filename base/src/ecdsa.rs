@@ -1,13 +1,12 @@
 use std::str::FromStr;
-
-use bs58::{decode, encode};use k256::{ecdsa::{signature::Signer, RecoveryId, Signature, SigningKey, }, schnorr::SignatureBytes, FieldBytes, Secp256k1, SecretKey};
-use k256::{EncodedPoint, ecdsa::{VerifyingKey, signature::Verifier}};
-use rand::{Rng, RngCore, SeedableRng};
+use bs58::{decode, encode};
+use k256::ecdsa::{signature::Signer, Signature, SigningKey};
+use k256::ecdsa::{VerifyingKey, signature::Verifier};
+use k256::pkcs8::DecodePublicKey;
+use rand::RngCore;
 use rand_core::OsRng;
-use serde::de::Error;
-use sha2::digest::generic_array::GenericArray;
-use rand_seeder::Seeder;
 use bip39::{self, Mnemonic};
+use k256::pkcs8::der::Encode;
 
 #[derive(Clone)]
 pub struct KeyPair {
@@ -80,9 +79,40 @@ pub fn address_to_public_key(address: String) -> Result<Vec<u8>, Box<dyn std::er
 }
 
 pub fn signature_to_bytes(signature: Signature) -> Vec<u8> {
-    signature.to_bytes().as_slice().to_vec()
+    signature.to_der().to_der().unwrap().as_slice().to_vec()
 }
 
-pub fn signature_from_bytes(bytes: Vec<u8>) -> Signature {
-    Signature::from_bytes(&GenericArray::clone_from_slice(bytes.as_slice())).unwrap()
+pub fn signature_from_bytes(bytes: Vec<u8>) -> Option<Signature> {
+    if let Ok(a) = Signature::from_der(bytes.as_slice()) {
+        Some(a)
+    } else {
+        None
+    }
+}
+
+pub struct TriplePublicKey {
+    pub object: VerifyingKey,
+    pub bytes: Vec<u8>,
+    pub address: String
+}
+
+impl TriplePublicKey {
+    pub fn from_bytes(source: Vec<u8>) -> Option<Self> {
+        if let Ok(object) = VerifyingKey::from_public_key_der(&source) {
+            Some (
+                Self {
+                    object,
+                    bytes: source.clone(),
+                    address: public_key_to_address(&source)
+                }
+            )
+        } else {
+            None
+        }
+    }
+}
+
+pub struct DoubleSignature {
+    pub object: Signature,
+    pub bytes: Vec<u8>
 }

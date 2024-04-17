@@ -119,7 +119,11 @@ impl Cache {
         let program_account;
 
         if let Some(program_account_inner) = self.get_owned_account(&instruction_skeleton.program_id) {
-            program_account = program_account_inner;
+            program_account = AccountInfo {
+                is_signer: false,
+                is_writable: false,
+                underlying_account: program_account_inner
+            };
         } else {
             return Err(())
         }

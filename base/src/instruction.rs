@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Instruction {
     pub accounts: Vec<AccountInfo>,
     pub data: Vec<u8>,
-    pub program_account: Account
+    pub program_account: AccountInfo
 }
 
 #[derive(Serialize, Deserialize)]
