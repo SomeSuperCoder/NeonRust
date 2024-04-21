@@ -1,6 +1,5 @@
 use crate::{invoke_handler::InvokeHandler, transaction::Transaction};
-use std::{sync::{Arc, Mutex, RwLock}, thread::JoinHandle};
-use std::collections::HashSet;
+use std::{sync::{Arc, RwLock}, thread::JoinHandle};
 
 #[derive(Default)]
 pub struct Runtime {

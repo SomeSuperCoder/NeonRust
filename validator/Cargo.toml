@@ -16,3 +16,4 @@ k256 = "0.13.3"
 config = { path = "../config" }
 borsh = { version = "1.3.1", features = ["derive"] }
 rand = "*"
+bs58 = "*"

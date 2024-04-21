@@ -8,13 +8,15 @@ pub mod poa;
 pub mod validator_config;
 
 use base::block::Block;
-use base::ecdsa;
+use base::ecdsa::{self, TriplePublicKey};
 use base::{
     blockchain::Blockchain,
     transaction::Transaction,
     ecdsa::KeyPair,
     runtime::Runtime
 };
+use k256::pkcs8::der::Encode;
+use k256::pkcs8::EncodePublicKey;
 use block_voter::BlockVoter;
 use validator_config::ValidatorConfig;
 use std::sync::Mutex;
@@ -34,7 +36,7 @@ static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("bronze major hair ranch level arrange coach engine reveal economy fragile lemon")).unwrap()});
-static me: Lazy<String> = Lazy::new(|| {ecdsa::public_key_to_address(&*my_key_pair.public_key.to_sec1_bytes())});
+static me: Lazy<String> = Lazy::new(|| {TriplePublicKey::from_object(my_key_pair.public_key.clone()).unwrap().address});
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
 
@@ -105,49 +107,44 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     
     let vote: Vote = vote.into_inner();
 
-    if let Ok(public_key_bytes) = ecdsa::address_to_public_key(vote.pubkey.clone()) {
-        if let Ok(public_key) = k256::ecdsa::VerifyingKey::from_sec1_bytes(
-            public_key_bytes.as_slice()
-        ) {
-            let sender_keypair = KeyPair{
-                private_key: None,
-                public_key
-            };
-        
-            if !vote.verify_sginature(&sender_keypair) {
-                println!("Invalid signature");
-                return "Invalid signature error"
-            }
-            let slot = current_slot.lock().unwrap().clone();
-            let slot_range = slot-5..slot+1;
-
-            thread::spawn(move || {
-                while runtime_locks.lock().unwrap().len() != 0 {}
-
-                if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.read().unwrap().cache, slot_range) {
-                    println!("Invalid block");
-                    return "Invalid block"
-                } else {
-                    let mut block_voter_access = block_voter.lock().unwrap();
-                    let did_actually_vote = block_voter_access.vote(vote.clone());
-                    drop(block_voter_access);
-                    
-                    let my_vote = vote.agree(&my_key_pair);
-                
-                    if did_actually_vote {
-                        thread::spawn(move || {
-                            bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
-                        });
-                    };
-                    return ""
-                };
-            });
-
-            return ""
-        } else {
-            println!("Error loading public key");
-            "Error loading public key"
+    if let Some(public_key_obj) = TriplePublicKey::from_address(vote.pubkey.clone()) {
+        let public_key_bytes = public_key_obj.bytes;
+        let public_key = public_key_obj.object;
+        let sender_keypair = KeyPair{
+            private_key: None,
+            public_key
+        };
+    
+        if !vote.verify_sginature(&sender_keypair) {
+            println!("Invalid signature");
+            return "Invalid signature error"
         }
+        let slot = current_slot.lock().unwrap().clone();
+        let slot_range = slot-5..slot+1;
+
+        thread::spawn(move || {
+            while runtime_locks.lock().unwrap().len() != 0 {}
+
+            if !vote.block.valid_for(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.read().unwrap().cache, slot_range) {
+                println!("Invalid block");
+                return "Invalid block"
+            } else {
+                let mut block_voter_access = block_voter.lock().unwrap();
+                let did_actually_vote = block_voter_access.vote(vote.clone());
+                drop(block_voter_access);
+                
+                let my_vote = vote.agree(&my_key_pair);
+            
+                if did_actually_vote {
+                    thread::spawn(move || {
+                        bc_to_url_post("vote", serde_json::to_string(&my_vote).expect("You just created an unserializable vote! Wierd..."))
+                    });
+                };
+                return ""
+            };
+        });
+
+        return ""
     } else {
         println!("Error loading public key");
         "Error loading public key"

@@ -1,7 +1,5 @@
 pub mod sc_rpc;
 
-use std::future::IntoFuture;
-
 use crate::instruction::Instruction;
 use borsh::BorshDeserialize;
 use sc_rpc::SCRPC;
@@ -17,7 +15,7 @@ impl CustomRunner {
     pub fn process_foreign_instruction (
         instruction: Instruction
     ) -> Result<ProgramResult, &'static str> {
-        if let Ok(args) = SCRPC::try_from_slice(&instruction.data) {
+        if let Ok(args) = serde_json::from_str::<SCRPC>(&instruction.data) {
             let program_result = ProgramResult::default();
 
             if let Ok(user_code) = String::from_utf8(instruction.program_account.underlying_account.data) {
@@ -44,9 +42,9 @@ impl CustomRunner {
                 }
                 println!("Executing user code!")
             } else {
-                println!("Failed to load user code. UTF8 decode error");
+                println!("Failed to load user code. UTF-8 decode error");
 
-                return Err("Failed to load user code. UTF8 decode error")
+                return Err("Failed to load user code. UTF-8 decode error")
             }
 
             Ok(program_result)

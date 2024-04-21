@@ -1,7 +1,7 @@
 use borsh::BorshDeserialize;
 
 use crate::{
-    account::Account, ecdsa::{address_to_public_key, public_key_to_address}, instruction::Instruction, program_result::{AccountChange, ProgramResult}, system_program::system_instruction::SystemInstrusction, utils::{
+    account::Account, ecdsa::TriplePublicKey, instruction::Instruction, program_result::{AccountChange, ProgramResult}, system_program::system_instruction::SystemInstrusction, utils::{
         custom_assert, next_account
     }
 };
@@ -13,7 +13,11 @@ impl SystemProgram {
         instruction: Instruction
     ) -> Result<ProgramResult, &'static str> {
         // Extract the command
-        let command = SystemInstrusction::try_from_slice(&instruction.data.as_slice());
+        let command = serde_json::from_str(&instruction.data);
+
+        for _ in 0..100 {
+            println!("We are in system!");
+        }
 
         match command {
             Ok(command) => {
@@ -86,7 +90,7 @@ impl SystemProgram {
                         let mut program_result = ProgramResult::default();
                         let mut accounts_iter = instruction.accounts.iter();
 
-                        if let Ok(_) = address_to_public_key(pubkey.clone()) {} else {
+                        if let None = TriplePublicKey::from_address(pubkey.clone()) {
                             return Err("Invalid public key")
                         }
 

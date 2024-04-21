@@ -2,11 +2,12 @@ use std::str::FromStr;
 use bs58::{decode, encode};
 use k256::ecdsa::{signature::Signer, Signature, SigningKey};
 use k256::ecdsa::{VerifyingKey, signature::Verifier};
-use k256::pkcs8::DecodePublicKey;
+use k256::pkcs8::der::Encode;
+use k256::pkcs8::{DecodePublicKey, EncodePublicKey};
+use k256::EncodedPoint;
 use rand::RngCore;
 use rand_core::OsRng;
 use bip39::{self, Mnemonic};
-use k256::pkcs8::der::Encode;
 
 #[derive(Clone)]
 pub struct KeyPair {
@@ -98,21 +99,52 @@ pub struct TriplePublicKey {
 
 impl TriplePublicKey {
     pub fn from_bytes(source: Vec<u8>) -> Option<Self> {
-        if let Ok(object) = VerifyingKey::from_public_key_der(&source) {
-            Some (
-                Self {
-                    object,
-                    bytes: source.clone(),
-                    address: public_key_to_address(&source)
-                }
-            )
+        if let Ok(encoded_point) = &EncodedPoint::from_bytes(&source) {
+            if let Ok(object) = VerifyingKey::from_encoded_point(encoded_point) {
+                Some (
+                    Self {
+                        object,
+                        bytes: source.clone(),
+                        address: public_key_to_address(&source)
+                    }
+                )
+            } else {
+                None
+            } 
         } else {
             None
         }
+    }
+
+    pub fn from_address(source: String) -> Option<Self> {
+        if let Ok(source) = address_to_public_key(source) {
+            Self::from_bytes(source)
+        } else {
+            None
+        }
+    }
+
+    pub fn from_object(object: VerifyingKey) -> Option<Self> {
+        Self::from_bytes(object.to_encoded_point(true).to_bytes().to_vec())
     }
 }
 
 pub struct DoubleSignature {
     pub object: Signature,
     pub bytes: Vec<u8>
+}
+
+impl DoubleSignature {
+    pub fn from_bytes(source: Vec<u8>) -> Option<Self> {
+        if let Ok(signature) = Signature::from_der(&source) {
+            Some (
+                Self {
+                    object: signature,
+                    bytes: source
+                }
+            )
+        } else {
+            None
+        }
+    }
 }

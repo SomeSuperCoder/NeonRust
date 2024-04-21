@@ -1,7 +1,7 @@
 use crate::instruction::InstrcuctionSekelton;
 use serde::{Deserialize, Serialize};
 use crate::cache::Cache;
-use crate::ecdsa::{self, KeyPair};
+use crate::ecdsa::{self, DoubleSignature, KeyPair};
 
 #[derive(Debug, Default, Clone)]
 #[derive(Serialize, Deserialize)]
@@ -26,26 +26,23 @@ impl Transaction {
         for account in &self.message.instruction.accounts {
             if account.is_signer {
                 signer_count += 1;
-                if let Ok(vk_bytes) = ecdsa::address_to_public_key(account.pubkey.clone()) {
-                    if let Ok(vk) = k256::ecdsa::VerifyingKey::from_sec1_bytes(&vk_bytes) {
-                        let keypair = KeyPair {
-                            public_key: vk,
-                            private_key: None
-                        };
-                        for signature in &self.signatures {
-                            let message_strig = &serde_json::to_string(&self.message).unwrap();
-                            let signature = ecdsa::signature_from_bytes(signature.clone());
-                            if let Some(signature) = signature {
-                                if keypair.verify(message_strig, signature) {
-                                    ok_count += 1;
-                                    break;
-                                }
-                            } else {
-                                return false;
+                let vk_obj = ecdsa::TriplePublicKey::from_address(account.pubkey.clone());
+                if let Some(vk_obj) = vk_obj {
+                    let keypair = KeyPair {
+                        public_key: vk_obj.object,
+                        private_key: None
+                    };
+                    for signature in &self.signatures {
+                        let message_strig = &serde_json::to_string(&self.message).unwrap();
+                        let signature = DoubleSignature::from_bytes(signature.clone());
+                        if let Some(signature) = signature {
+                            if keypair.verify(message_strig, signature.object) {
+                                ok_count += 1;
+                                break;
                             }
-                        } 
-                    } else {
-                        return false;
+                        } else {
+                            return false;
+                        }
                     }
                 } else {
                     return false;

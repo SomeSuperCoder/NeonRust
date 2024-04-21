@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use borsh::{BorshSerialize, BorshDeserialize};
+use serde::{Serialize, Deserialize};
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(Serialize, Deserialize)]
 #[derive(Default)]
 pub struct SCRPC {
     pub data: HashMap<String, String>

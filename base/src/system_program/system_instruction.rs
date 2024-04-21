@@ -1,6 +1,6 @@
-use borsh::{BorshSerialize, BorshDeserialize};
+use serde::{Serialize, Deserialize};
 
-#[derive(BorshSerialize, BorshDeserialize)]
+#[derive(Serialize, Deserialize)]
 pub enum SystemInstrusction {
     CreateAccount { pubkey: String },
     CloseAccount,

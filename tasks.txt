@@ -1,5 +1,4 @@
-1) Remove address to public key unwraps
-2) Update address to and from public key transformation methods
+3) Remove unwraps
 
 Later:
 9) If one change done by a Program failed, all should be reverted (use clousres)
