@@ -22,7 +22,6 @@ impl BlockVoter {
     }
 
     pub fn vote(&mut self, vote: Vote) -> bool {
-        let return_value: bool;
         let block = vote.block;
 
         let id_ref = self.data.entry(block.data.height.clone()).or_insert(HashMap::new());
@@ -38,7 +37,7 @@ impl BlockVoter {
 
         for (id, block_voter_wrapper) in &self.data {
             if *id == block_id {
-                for (hash, block_voter) in block_voter_wrapper {
+                for (_, block_voter) in block_voter_wrapper {
                     if (block_voter.count() / _100_percent) as f32 > config::REQUIRED_VOTE_PERCENT {
                         results.push(&block_voter.block)
                     }
@@ -60,7 +59,7 @@ impl BlockVoter {
         let min_height: u128 = blockchain.get_latest_block_height();
         let mut should_remove: Vec<u128> = Vec::new();
 
-        for (height, block_voter) in &self.data {
+        for (height, _) in &self.data {
             if *height <= min_height {
                 should_remove.push(height.clone());
             }

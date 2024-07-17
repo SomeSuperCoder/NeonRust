@@ -3,7 +3,7 @@ use bs58::{decode, encode};
 use k256::ecdsa::{signature::Signer, Signature, SigningKey};
 use k256::ecdsa::{VerifyingKey, signature::Verifier};
 use k256::pkcs8::der::Encode;
-use k256::pkcs8::{DecodePublicKey, EncodePublicKey};
+use k256::pkcs8::DecodePrivateKey;
 use k256::EncodedPoint;
 use rand::RngCore;
 use rand_core::OsRng;
@@ -57,6 +57,18 @@ impl KeyPair {
         } else {
             None
         }
+    }
+
+    pub fn from_der(der: String) -> Result<Self, Box<dyn std::error::Error>> {
+        let der_bytes = bs58::decode(der).into_vec()?;
+        let sk = SigningKey::from_pkcs8_der(&der_bytes)?;
+
+        let kp = KeyPair {
+            private_key: Some(sk.clone()),
+            public_key: *sk.verifying_key()
+        };
+
+        Ok(kp)
     }
 }
 
@@ -144,6 +156,7 @@ impl DoubleSignature {
                 }
             )
         } else {
+            println!("DoubleSig error: failed to load signature from provided DER bytes");
             None
         }
     }

@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs;
-use base;
 
 pub struct PoA {}
 

@@ -8,10 +8,11 @@ pub struct Runtime {
 
 impl Runtime {
     pub fn feed_tx_list(&self, tx_list: Vec<Transaction>) -> Vec<JoinHandle<()>> {
-        println!("Feed list!");
         let mut handles: Vec<JoinHandle<()>> = Vec::new();
         for tx in tx_list {
+            println!("Trying to get ih access!");
             let ih_access = self.invoke_handler.read().unwrap();
+            println!("Successfully got ih access!");
             for signature in tx.signatures {
                 ih_access.cache.spend(signature)
             }

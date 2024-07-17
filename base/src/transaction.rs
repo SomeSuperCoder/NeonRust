@@ -15,6 +15,7 @@ impl Transaction {
     pub fn valid_for(&self, cache: &Cache) -> bool {
         for signature in &self.signatures {
             if cache.is_spent(signature.clone()) {
+                println!("TX verify error: Sig dup");
                 return false
             }
         }
@@ -27,16 +28,22 @@ impl Transaction {
             if account.is_signer {
                 signer_count += 1;
                 let vk_obj = ecdsa::TriplePublicKey::from_address(account.pubkey.clone());
+                println!("Here!");
+                println!("Loading account: {}", account.pubkey.clone());
                 if let Some(vk_obj) = vk_obj {
+                    println!("Cond1!");
                     let keypair = KeyPair {
                         public_key: vk_obj.object,
                         private_key: None
                     };
                     for signature in &self.signatures {
-                        let message_strig = &serde_json::to_string(&self.message).unwrap();
+                        let message_string = &serde_json::to_string(&self.message).unwrap();
+                        println!("Checking message: {}", message_string);
                         let signature = DoubleSignature::from_bytes(signature.clone());
                         if let Some(signature) = signature {
-                            if keypair.verify(message_strig, signature.object) {
+                            println!("Cond2!");
+                            if keypair.verify(message_string, signature.object) {
+                                println!("Cond3!");
                                 ok_count += 1;
                                 break;
                             }
@@ -45,6 +52,7 @@ impl Transaction {
                         }
                     }
                 } else {
+                    println!("Error loading account");
                     return false;
                 }
             }

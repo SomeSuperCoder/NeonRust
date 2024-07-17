@@ -1,22 +1,13 @@
-pub mod id;
-pub mod epoch;
 pub mod block_votes;
-pub mod tx_pool;
 pub mod vote;
 pub mod block_voter;
 pub mod poa;
 pub mod validator_config;
 
-use base::block::Block;
-use base::ecdsa::{self, TriplePublicKey};
 use base::{
-    blockchain::Blockchain,
-    transaction::Transaction,
-    ecdsa::KeyPair,
-    runtime::Runtime
+    account::Account, block::Block, blockchain::Blockchain, cache::Cache, ecdsa::{KeyPair, TriplePublicKey}, runtime::Runtime, transaction::Transaction
 };
-use k256::pkcs8::der::Encode;
-use k256::pkcs8::EncodePublicKey;
+use k256::pkcs8::EncodePrivateKey;
 use block_voter::BlockVoter;
 use validator_config::ValidatorConfig;
 use std::sync::Mutex;
@@ -25,19 +16,28 @@ use rocket::serde::json::Json;
 use std::thread;
 use crate::vote::Vote;
 use config;
-use base::account::Account;
 use std::collections::HashSet;
 use poa::PoA;
 
+#[allow(non_upper_case_globals)]
 static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
+#[allow(non_upper_case_globals)]
 static tx_pool: Lazy<Mutex<HashSet<Transaction>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+#[allow(non_upper_case_globals)]
 static blockchain: Lazy<Mutex<Blockchain>> = Lazy::new(|| Mutex::new(Blockchain::load()));
+#[allow(non_upper_case_globals)]
 static other_nodes: Lazy<Mutex<Vec<String>>> = Lazy::new(|| Mutex::new(vec!["127.0.0.1:8000".to_string()]));
+#[allow(non_upper_case_globals)]
 static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
+#[allow(non_upper_case_globals)]
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
+#[allow(non_upper_case_globals)]
 static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("bronze major hair ranch level arrange coach engine reveal economy fragile lemon")).unwrap()});
+#[allow(non_upper_case_globals)]
 static me: Lazy<String> = Lazy::new(|| {TriplePublicKey::from_object(my_key_pair.public_key.clone()).unwrap().address});
+#[allow(non_upper_case_globals)]
 static runtime: Lazy<Mutex<Runtime>> = Lazy::new(|| {Mutex::new(Runtime::default())});
+#[allow(non_upper_case_globals)]
 static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(HashSet::new())});
 
 #[macro_use] extern crate rocket;
@@ -45,6 +45,7 @@ static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(Ha
 #[launch]
 fn rocket() -> _ {
     println!("I am: {}", *me);
+    println!("My sk der: {}", my_key_pair.private_key.clone().unwrap().to_pkcs8_pem(k256::pkcs8::LineEnding::LF).unwrap().as_str());
     // Add all nodes from the config to the node list
     for node in &validator_config.neighbours {
         other_nodes.lock().unwrap().push(node.clone());
@@ -66,7 +67,7 @@ fn rocket() -> _ {
     load();
 
     // ======================
-    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url, get_account])
+    rocket::build().mount("/", routes![index, pull_blockchain, add_tx, vote_url, get_account, is_spent])
 
 }
 
@@ -90,7 +91,7 @@ fn pull_blockchain(index: usize) -> String {
 
 #[post("/add_tx", data = "<tx>")]
 fn add_tx(tx: Json<Transaction>) -> &'static str {
-    let tx = tx.into_inner();
+    let tx: Transaction = tx.into_inner();
     if tx_pool.lock().unwrap().insert(tx.clone()) {
         thread::spawn(move || {
             bc_to_url_post("/add_tx", serde_json::to_string(&tx).unwrap())
@@ -108,7 +109,7 @@ fn vote_url(vote: Json<Vote>) -> &'static str {
     let vote: Vote = vote.into_inner();
 
     if let Some(public_key_obj) = TriplePublicKey::from_address(vote.pubkey.clone()) {
-        let public_key_bytes = public_key_obj.bytes;
+        // let public_key_bytes = public_key_obj.bytes;
         let public_key = public_key_obj.object;
         let sender_keypair = KeyPair{
             private_key: None,
@@ -156,6 +157,15 @@ fn get_account(pubkey: String) -> String {
     serde_json::to_string(&base::cache::Cache::default().get_owned_account(&pubkey)).unwrap()
 }
 
+#[get("/is_spent/<sig>")]
+fn is_spent(sig: String) -> String {
+    if let Ok(sig) = bs58::decode(sig).into_vec() {
+        serde_json::to_string(&Cache::default().is_spent(sig)).unwrap()
+    } else {
+        String::new()
+    }
+}
+
 fn main_validator() {
     upadte_slot(); // Wait for a full slot #1
     upadte_slot(); // Wait for a full slot #2
@@ -192,6 +202,7 @@ fn bg_finalizer() {
 
         let mut blockchain_access = blockchain.lock().unwrap();
         let mut block_voter_access = block_voter.lock().unwrap();
+        
         let block = block_voter_access.result_for(
             blockchain_access.get_latest_block_height() + 1,
         other_nodes.lock().unwrap().len() as u128);

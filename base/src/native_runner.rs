@@ -6,7 +6,7 @@ use crate::system_program::main_struct::SystemProgram;
 use std::{error::Error, sync::RwLock};
 use std::fmt;
 use config::SYSTEM_PROGRAM_ADDRESS;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 #[derive(Debug)]
 struct MyError(String);
@@ -26,9 +26,8 @@ pub struct NativeRunner {}
 impl NativeRunner {
     pub fn process_instrcution (
         ins: Instruction,
-        invoke_handler: Arc<RwLock<InvokeHandler>>
+        _invoke_handler: Arc<RwLock<InvokeHandler>>
     ) -> Result<ProgramResult, &'static str> {
-
         match ins.program_account.underlying_account.pubkey.as_str() {
             SYSTEM_PROGRAM_ADDRESS => {
                 SystemProgram::process_instruction(ins)

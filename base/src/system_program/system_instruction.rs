@@ -7,5 +7,6 @@ pub enum SystemInstrusction {
     Send { amount: u128 },
     SetAuthority { authority: u128 },
     SetAdmin { admin: bool },
-    HelloWorld
+    HelloWorld,
+    CreateSystemAccount { pubkey: String },
 }
