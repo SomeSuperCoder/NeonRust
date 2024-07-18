@@ -17,7 +17,7 @@ use std::thread;
 use crate::vote::Vote;
 use config;
 use std::collections::HashSet;
-use poa::PoA;
+use base::consensus::Consensus;
 
 #[allow(non_upper_case_globals)]
 static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
@@ -61,7 +61,8 @@ fn rocket() -> _ {
             executable: false,
             data: Vec::new()
         }; 
-        base::cache::Cache::default().set_account(account);
+        base::cache::Cache::default().set_account(account.clone());
+        base::cache::Cache::default().add_validator(account.clone());
     }
     
     load();
@@ -171,7 +172,7 @@ fn main_validator() {
     upadte_slot(); // Wait for a full slot #2
 
     loop {
-        if PoA::next() == *me {
+        if Consensus::select(&blockchain.lock().unwrap(), &runtime.lock().unwrap().invoke_handler.read().unwrap().cache) == *me {
             println!("🎉 You are chosen 🎉");
             
             // Create and broadcast a block
@@ -211,7 +212,7 @@ fn bg_finalizer() {
 
         match block {
             Some(block) => {
-                println!("Adding block");
+                // println!("Adding block");
                 blockchain_access.add_block(block.clone());
 
                 thread::spawn(

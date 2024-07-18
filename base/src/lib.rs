@@ -1,7 +1,6 @@
 pub mod hasher;
 pub mod transaction;
 pub mod ecdsa;
-pub mod has_address;
 pub mod system_program;
 pub mod utils;
 pub mod history;
@@ -15,6 +14,7 @@ pub mod cache;
 pub mod invoke_handler;
 pub mod runtime;
 pub mod custom_runner;
+pub mod consensus;
 
 // #[cfg(test)]
 // mod tests {

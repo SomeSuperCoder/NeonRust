@@ -20,3 +20,4 @@ rand_seeder = "0.2.3"
 bip39 = "2.0.0"
 mlua = { version = "0.9.6", features = ["lua54"] }
 tokio = "1.36.0"
+rand_distr = "0.4.3"

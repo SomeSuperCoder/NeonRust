@@ -21,10 +21,10 @@ pub enum AccountChange {
     SetData { of: String, data: Vec<u8> },
     SetAtoms { of: String, amount: u128 },
     SetExecutable { of: String, executable: bool },
-    SetAuthority { of: String, authority: u128 },
     CreateAccount { account: Account },
     CloseAccount { pubkey: String },
-    SetAdmin { of: String, admin: bool }
+    StartValidating { account: Account },
+    StopValidating { account: Account }
 }
 
 pub struct AccountChangeWrapper {

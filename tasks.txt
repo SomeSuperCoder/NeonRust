@@ -1,5 +1,2 @@
-3) Remove unwraps
-
-Later:
-9) If one change done by a Program failed, all should be reverted (use clousres)
-??) Python runtime
+- Check validators when validating blocks
+- If one change done by a Program failed, all should be reverted (use clousres)

@@ -117,42 +117,6 @@ impl SystemProgram {
 
                         Ok(program_result)
                     },
-                    SystemInstrusction::SetAdmin { admin } => {
-                        let mut program_result = ProgramResult::default();
-                        let mut accounts_iter = instruction.accounts.iter();
-
-                        let dude = next_account(&mut accounts_iter)?;
-                        custom_assert(dude.is_signer)?;
-                        custom_assert(dude.underlying_account.admin)?;
-
-                        let target = next_account(&mut accounts_iter)?;
-                        custom_assert(target.is_writable)?;
-                        custom_assert(target.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
-
-                        program_result.changes.push(
-                            AccountChange::SetAdmin { of: dude.underlying_account.pubkey.clone(), admin: admin }
-                        );
-
-                        Ok(program_result)
-                    },
-                    SystemInstrusction::SetAuthority { authority } => {
-                        let mut program_result = ProgramResult::default();
-                        let mut accounts_iter = instruction.accounts.iter();
-
-                        let dude = next_account(&mut accounts_iter)?;
-                        custom_assert(dude.is_signer)?;
-                        custom_assert(dude.underlying_account.admin)?;
-
-                        let target = next_account(&mut accounts_iter)?;
-                        custom_assert(target.is_writable)?;
-                        custom_assert(target.underlying_account.owner == instruction.program_account.underlying_account.pubkey)?;
-
-                        program_result.changes.push(
-                            AccountChange::SetAuthority { of: target.underlying_account.pubkey.clone(), authority: authority }
-                        );
-
-                        Ok(program_result)
-                    },
                     SystemInstrusction::CreateSystemAccount { pubkey } => {
                         let mut program_result = ProgramResult::default();
 
@@ -169,7 +133,17 @@ impl SystemProgram {
                         );
 
                         Ok(program_result)
-                    } 
+                    },
+                    SystemInstrusction::Validate => {
+                        let mut program_result = ProgramResult::default();
+
+                        Ok(program_result)
+                    },
+                    SystemInstrusction::Unvalidate => {
+                        let mut program_result = ProgramResult::default();
+
+                        Ok(program_result)
+                    }
                 }
             }
             Err(_) => return Err("Parse error")

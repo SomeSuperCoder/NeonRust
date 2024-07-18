@@ -45,16 +45,6 @@ impl Cache {
                     return Err(())
                 }
             },
-            AccountChange::SetAuthority { of, authority } => {
-                match self.get_owned_account(&of) {
-                    Some(mut account) => {
-                        account.authority = authority;
-
-                        self.set_account(account)
-                    },
-                    None => return Err(())
-                }
-            },
             AccountChange::SetExecutable { of, executable } => {
                 match self.get_owned_account(&of) {
                     Some(mut account) => {
@@ -65,15 +55,11 @@ impl Cache {
                     None => return Err(())
                 }
             },
-            AccountChange::SetAdmin { of, admin } => {
-                match self.get_owned_account(&of) {
-                    Some(mut account) => {
-                        account.admin = admin;
-
-                        self.set_account(account)
-                    },
-                    None => return Err(())
-                }
+            AccountChange::StartValidating { account } => {
+                self.add_validator(account);
+            },
+            AccountChange::StopValidating { account } => {
+                self.remove_validator(account);
             }
         }
 
@@ -192,18 +178,29 @@ impl Cache {
         fs::read_to_string(make_spend_path(&hash)).is_ok()
     }
 
-    pub fn update_authority(&self, pubkey: String, authority: u128) {
-        fs::write(make_authority_path(&pubkey), authority.to_string()).unwrap();
-    }
+    pub fn get_validator_list(&self) -> Vec<Account> {
+        let mut result = Vec::new();
 
-    pub fn get_validator_amount(&self) -> u128 {
-        let mut amount = 0;
+        for entry in fs::read_dir("./neon_validator/cache/validators/").unwrap() {
+            let entry = entry.unwrap();
 
-        for _ in fs::read_dir("./neon_validator/cache/authority/").unwrap() {
-            amount += 1;
+            let pubkey = entry.path().file_name().unwrap().to_str().unwrap().to_string();
+            let account = self.get_owned_account(&pubkey);
+
+            if let Some(account) = account {
+                result.push(account);
+            }
         }
 
-        amount
+        result
+    }
+
+    pub fn add_validator(&self, who: Account) {
+        fs::write(make_validator_path(&who.pubkey), "").unwrap();
+    }
+
+    pub fn remove_validator(&self, who: Account) {
+        let _ = fs::remove_file(make_validator_path(&who.pubkey));
     }
 } 
 
@@ -221,8 +218,8 @@ fn make_spend_path(hash: &String) -> String {
     format!("./neon_validator/cache/signatures/{}", hash)
 }
 
-fn make_authority_path(pubkey: &String) -> String {
-    format!("./neon_validator/cache/authority/{}", pubkey)
+fn make_validator_path(pubkey: &String) -> String {
+    format!("./neon_validator/cache/validators/{}", pubkey)
 }
 
 // if let Ok(entries) = fs::read_dir(dir_path) {
