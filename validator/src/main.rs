@@ -7,7 +7,6 @@ pub mod validator_config;
 use base::{
     account::Account, block::Block, blockchain::Blockchain, cache::Cache, ecdsa::{KeyPair, TriplePublicKey}, runtime::Runtime, transaction::Transaction
 };
-use k256::pkcs8::EncodePrivateKey;
 use block_voter::BlockVoter;
 use validator_config::ValidatorConfig;
 use std::sync::Mutex;
@@ -18,6 +17,7 @@ use crate::vote::Vote;
 use config;
 use std::collections::HashSet;
 use base::consensus::Consensus;
+use k256::pkcs8::EncodePrivateKey;
 
 #[allow(non_upper_case_globals)]
 static validator_config: Lazy<ValidatorConfig> = Lazy::new(|| {ValidatorConfig::load()});
@@ -32,7 +32,7 @@ static current_slot: Lazy<Mutex<u128>> = Lazy::new(|| Mutex::new(0));
 #[allow(non_upper_case_globals)]
 static block_voter: Lazy<Mutex<BlockVoter>> = Lazy::new(|| Mutex::new(BlockVoter::new()));
 #[allow(non_upper_case_globals)]
-static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::recover(String::from("bronze major hair ranch level arrange coach engine reveal economy fragile lemon")).unwrap()});
+static my_key_pair: Lazy<KeyPair> = Lazy::new(|| {KeyPair::from_pem(validator_config.private_key_pem.clone()).unwrap()});
 #[allow(non_upper_case_globals)]
 static me: Lazy<String> = Lazy::new(|| {TriplePublicKey::from_object(my_key_pair.public_key.clone()).unwrap().address});
 #[allow(non_upper_case_globals)]
@@ -45,11 +45,14 @@ static runtime_locks: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| {Mutex::new(Ha
 #[launch]
 fn rocket() -> _ {
     println!("I am: {}", *me);
-    println!("My sk der: {}", my_key_pair.private_key.clone().unwrap().to_pkcs8_pem(k256::pkcs8::LineEnding::LF).unwrap().as_str());
+
+    println!("My sk pem: {}", my_key_pair.private_key.clone().unwrap().to_pkcs8_pem(k256::pkcs8::LineEnding::LF).unwrap().as_str());
+
     // Add all nodes from the config to the node list
     for node in &validator_config.neighbours {
         other_nodes.lock().unwrap().push(node.clone());
     }
+
     // Handle genesis account
     if let Some(_) = base::cache::Cache::default().get_owned_account(&String::from(config::GENESIS_PUBKEY)) {} else {
         let account = Account {

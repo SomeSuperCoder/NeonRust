@@ -45,23 +45,22 @@ impl KeyPair {
         }
     }
 
-    pub fn recover(seed_phrase: String) -> Option<KeyPair> {
-        if let Ok(mnemonic) = Mnemonic::from_str(&seed_phrase) {
-            let private_key = SigningKey::from_slice(&mnemonic.to_seed("")[0..24]).unwrap();
-            Some(
-                KeyPair {
-                    public_key: VerifyingKey::from(&private_key),
-                    private_key: Some(private_key)
-                }
-            )
-        } else {
-            None
-        }
-    }
+    // pub fn recover(seed_phrase: String) -> Option<KeyPair> {
+    //     if let Ok(mnemonic) = Mnemonic::from_str(&seed_phrase) {
+    //         let private_key = SigningKey::from_slice(&mnemonic.to_seed("")[0..24]).unwrap();
+    //         Some(
+    //             KeyPair {
+    //                 public_key: VerifyingKey::from(&private_key),
+    //                 private_key: Some(private_key)
+    //             }
+    //         )
+    //     } else {
+    //         None
+    //     }
+    // }
 
-    pub fn from_der(der: String) -> Result<Self, Box<dyn std::error::Error>> {
-        let der_bytes = bs58::decode(der).into_vec()?;
-        let sk = SigningKey::from_pkcs8_der(&der_bytes)?;
+    pub fn from_pem(der: String) -> Result<Self, Box<dyn std::error::Error>> {
+        let sk = SigningKey::from_pkcs8_pem(&der)?;
 
         let kp = KeyPair {
             private_key: Some(sk.clone()),

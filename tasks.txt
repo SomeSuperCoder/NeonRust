@@ -1,2 +1,3 @@
 - Check validators when validating blocks
+- Add to neighbours(check if he is a validator) on request
 - If one change done by a Program failed, all should be reverted (use clousres)
